@@ -1,0 +1,440 @@
+<?php
+
+/**
+ *
+ * Implements hook_help
+ * Display help and module information
+ */
+function mutarget_help($path, $arg) {
+  switch ($path) {
+    case "admin/help#mutarget":
+      return t("Mutarget webservice");
+      break;
+  }
+}
+
+/**
+ * Implements hook_menu
+ * Mutarget will be in the main menu
+ */
+function mutarget_menu() {
+  $items["MuTarget"] = array(
+    'title' => 'Mutarget',
+    'page callback' => 'mutarget_inputform',
+    'page arguments' => array('None'),
+    'access callback' => TRUE,
+    'expanded' => TRUE,
+  );
+
+  $items["MuTarget/Genotype"] = array(
+    'title' => 'Genotype',
+    'page callback' => 'mutarget_inputform',
+    'page arguments' => array('genotype_form'),
+    'access callback' => TRUE,
+  );
+
+  $items["MuTarget/Target"] = array(
+    'title' => 'Target',
+    'page callback' => 'mutarget_inputform',
+    'page arguments' => array('target_form'),
+    'access callback' => TRUE,
+  );
+
+  $items["MuTarget/autocomplete"] = array(
+    'title' => t('Autocomplete menu'),
+    'page callback' => 'gene_autocomplete',
+    'access callback' => TRUE,
+    'access argument' => array('access content',),
+    'type' => MENU_CALLBACK,
+  );
+
+  return($items);
+}
+
+function add_header($inpgene) {
+  $html = "Input gene: " . $inpgene . "<br />\n";
+  $html = $html . "Number of mutations: Soon<br />\n";
+  return $html;
+}
+
+function create_table($tmpname) {
+  $table = fopen($tmpname . ".tsv", "r");
+  if ($table != false) {
+    $html = "<table><thead><tr><th>Gene</th><th>";
+    $header = fgets($table, 1024);
+    $header = str_replace("\t", "</th><th>", $header);
+    $html = $html . $header;
+    $html = $html . "</th></tr></thead><tbody>";
+    while (!feof($table)) {
+      $data = fgets($table, 1024);
+      if ($data != ""){
+        $html = $html . "<tr><td>";
+        $data = str_replace("\t", "</td><td>", $data);
+        $data = str_replace("\n", "", $data);
+        $html = $html . $data;
+        $html = $html . "</td></tr>\n";
+      }
+    }
+    $html = $html . "</tbody></table>";
+    fclose($table);
+  }
+
+  return $html;
+}
+
+function add_pictures($tmpname) {
+  $html = "";
+  foreach( glob($tmpname . "*.png") as $pic ){
+    $pic = str_replace("/tmp/MUT", "", $pic);
+    $html = $html . '<img src="sites/all/modules/mutarget/showpic.php?pic=' . $pic . '" /><br />' . "\n";
+  }
+  return $html;
+}
+
+/**
+ * Rendering the page
+ */
+function mutarget_inputform($formchoose) {
+  if ($formchoose != 'None') {
+    $form = drupal_get_form($formchoose);
+  } else {
+    if (isset($_SESSION['mutarget_res'])) {
+      $form = add_header($_SESSION['input_gene']);
+      $form = $form . create_table($_SESSION['mutarget_res']);
+      $form = $form . add_pictures($_SESSION['mutarget_res']);
+    } else {
+      $form = 'Please choose one from our services';
+    }
+  }
+
+  return($form);
+}
+
+function gene_autocomplete($string) {
+  $matches = array();
+
+  $mutarget_db = array(
+    'database' => 'mutarget',
+    'username' => 'XXXX',
+    'password' => 'XXXX',
+    'host' => 'localhost',
+    'driver' => 'mysql',
+  );
+
+  Database::addConnectionInfo('mutarget', 'default', $mutarget_db);
+
+  db_set_active('mutarget');
+  $result = db_query("select genename from genetable where genename like '%" . $string . "%' limit 10;");
+
+  foreach ($result as $rec) {
+    $matches[ $rec->genename ] = $rec->genename;
+  }
+
+  db_set_active();
+
+  drupal_json_output($matches);
+}
+
+/**
+ * Genotype form
+ */
+function genotype_form($form, $form_state) {
+  global $user;
+
+  $form['genes'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Input genes'),
+    '#autocomplete_path' => 'MuTarget/autocomplete',
+  );
+
+  if (!empty($user->name)) {
+  $form['tumtype'] = array(
+    '#type' => 'select',
+    '#title' => t('Tumour type'),
+    '#options' => array(
+      '1' => t('Breast Invasive Carcinoma'),
+      '2' => t('Kidney Chromophobe'),
+      '3' => t('Rectum Adenocarcinoma'),
+      '4' => t('Lung Adenocarcinoma'),
+      '5' => t('Kidney Renal Clear Cell Carcinoma'),
+      '6' => t('Lung Squamous Cell Carcinoma'),
+      '7' => t('Head and Neck Squamous Cell Carcinoma'),
+      '8' => t('Prostate Adenocarcinoma'),
+      '9' => t('Ovarian Serous Cystadenocarcinoma'),
+      '10' => t('Colon Adenocarcinoma'),
+      '11' => t('Kidney Renal Papillary Cell Carcinoma'),
+      '12' => t('Skin Cutaneous Melanoma'),
+    ),
+    '#default_value' => '1',
+  );
+  } else {
+    $form['tumtype'] = array(
+      '#type' => 'hidden',
+      '#value' => '1',
+    );
+    $form['dummy'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Tumour type'),
+      '#value' => t('Breast Invasive Carcinoma'),
+      '#disabled' => TRUE,
+    );
+  }
+
+  $form['advanced'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Advanced options'),
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+  );
+
+  $form['advanced']['muttype'] = array(
+    '#type' => 'select',
+    '#title' => t('Mutation type'),
+    '#options' => array(
+      '1' => t('Inframe insertion'),
+      '2' => t('Inframe deletion'),
+      '3' => t('Non-coding exon variant'),
+      '5' => t('5\' UTR'),
+      '6' => t('NMD transcript variant'),
+      '9' => t('Non-coding'),
+      '10' => t('Downstream gene'),
+      '11' => t('Intergenic variant'),
+      '12' => t('Missense'),
+      '14' => t('Intron variant'),
+      '15' => t('Regulatory region variant'),
+      '16' => t('Stop gained'),
+      '18' => t('Synonymous'),
+      '20' => t('Frameshift'),
+      '21' => t('Splice acceptor'),
+      '22' => t('Splice donor'),
+      '23' => t('TFBS ablation'),
+      '24' => t('Splice region variant'),
+      '26' => t('Upstream gene variant'),
+      '27' => t('3\' UTR'),
+      '28' => t('TF binding site'),
+    ),
+    '#default_value' => '12',
+  );
+
+  $form['advanced']['filtertype'] = array(
+    '#type' => 'radios',
+    '#title' => t('Use mutation filter'),
+    '#options' => array(
+      'include' => t('include'),
+      'exclude' => t('exclude'),
+    ),
+  );
+
+  $form['advanced']['filtergene'] = array(
+    '#type' => 'textfield',
+    '#title' => t('patients with mutations in'),
+    '#autocomplete_path' => 'MuTarget/autocomplete',
+  );
+
+  $form['advanced']['pvalue'] = array(
+    '#type' => 'textfield',
+    '#title' => t('p-value cutoff'),
+    '#default_value' => '0.05',
+    '#size' => 4,
+    '#maxlength' => 4,
+  );
+
+  $form['advanced']['foldchange'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Fold change cutoff'),
+    '#default_value' => '1.44',
+    '#size' => 4,
+    '#maxlength' => 4,
+  );
+
+  $form['advanced']['table'] = array(
+    '#type' => 'radios',
+    '#title' => t('Generate table for'),
+    '#options' => array(
+      'all' => t('All significant genes'),
+      'action' => t('Actionable genes only'),
+      'fda' => t('FDA approvead actionable genes only'),
+    ),
+    '#default_value' => 'all',
+  );
+
+  $form['advanced']['numtopgenes'] = array(
+    '#type' => 'select',
+    '#title' => t('Show plot for'),
+    '#options' => array(
+      '5' => t('Top 5 genes'),
+      '10' => t('Top 10 genes'),
+      '20' => t('Top 20 genes'),
+      'all' => t('All genes'),
+    ),
+    '#default_value' => '5',
+  );
+
+  $form['qtype'] = array(
+    '#type' => 'hidden',
+    '#value' => 'genotype',
+  );
+
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Send'),
+  );
+
+  return $form;
+}
+
+function genotype_form_validate($form, $form_state){
+}
+
+function genotype_form_submit($form, $form_state){
+  $tmp_name = tempnam("", "MUT");
+  $genes = $form_state['values']['genes'];
+  $muttype = $form_state['values']['muttype'];
+  $cancer = $form_state['values']['tumtype'];
+  $pvalue = $form_state['values']['pvalue'];
+  $foldchange = $form_state['values']['foldchange'];
+  $outtable = $form_state['values']['table'];
+  $numtopgenes = $form_state['values']['numtopgenes'];
+  $filtgene = $form_state['values']['filtergene'];
+  $filttype = $form_state['values']['filtertype'];
+
+  chdir('sites/all/modules/mutarget/');
+  $cmd = "Rscript genotype.R $tmp_name $genes $muttype $cancer $pvalue $foldchange $outtable $numtopgenes $filtgene $filttype";
+  $proc = popen($cmd, "r");
+  while (!feof($proc)){
+    $data = fread($proc, 1025);
+  }
+  pclose($proc);
+  //drupal_set_message(t('Job submited'));
+  $_SESSION['mutarget_res'] = $tmp_name;
+  $_SESSION['input_gene'] = $genes;
+  drupal_goto('MuTarget');
+}
+
+/**
+ * Create Target forms
+ */ 
+function target_form($form, $form_state){
+  global $user;
+
+  $form['gene'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Enter gene symbol here'),
+    '#autocomplete_path' => 'MuTarget/autocomplete',
+  );
+
+  if (!empty($user->name)) {
+  $form['tumtype'] = array(
+    '#type' => 'select',
+    '#title' => t('Tumour type'),
+    '#options' => array(
+      '1' => t('Breast Invasive Carcinoma'),
+      '2' => t('Kidney Chromophobe'),
+      '3' => t('Rectum Adenocarcinoma'),
+      '4' => t('Lung Adenocarcinoma'),
+      '5' => t('Kidney Renal Clear Cell Carcinoma'),
+      '6' => t('Lung Squamous Cell Carcinoma'),
+      '7' => t('Head and Neck Squamous Cell Carcinoma'),
+      '8' => t('Prostate Adenocarcinoma'),
+      '9' => t('Ovarian Serous Cystadenocarcinoma'),
+      '10' => t('Colon Adenocarcinoma'),
+      '11' => t('Kidney Renal Papillary Cell Carcinoma'),
+      '12' => t('Skin Cutaneous Melanoma'),
+    ),
+    '#default_value' => '1',
+  );
+  } else {
+    $form['tumtype'] = array(
+      '#type' => 'hidden',
+      '#value' => '1',
+    );
+    $form['dummy'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Tumour type'),
+      '#value' => t('Breast Invasive Carcinoma'),
+      '#disabled' => TRUE,
+    );
+  }
+
+  $form['advanced'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Advanced options'),
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+  );
+
+  $form['advanced']['filtertype'] = array(
+    '#type' => 'radios',
+    '#title' => t('Use mutation filter'),
+    '#options' => array(
+      'include' => t('include'),
+      'exclude' => t('exclude'),
+    ),
+  );
+
+  $form['advanced']['filtergene'] = array(
+    '#type' => 'textfield',
+    '#title' => t('patients with mutations in'),
+    '#autocomplete_path' => 'MuTarget/autocomplete',
+  );
+
+  $form['advanced']['pvalue'] = array(
+    '#type' => 'textfield',
+    '#title' => t('p-value cutoff'),
+    '#default_value' => '0.05',
+    '#size' => 4,
+    '#maxlength' => 4,
+  );
+
+  $form['advanced']['foldchange'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Fold change cutoff'),
+    '#default_value' => '1.44',
+    '#size' => 4,
+    '#maxlength' => 4,
+  );
+
+  $form['advanced']['prevalence'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Mutation prevalence at least'),
+    '#default_value' => '1',
+    '#size' => 4,
+    '#maxlength' => 4,
+  );
+
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Send'),
+  );
+
+  return($form);
+
+}
+
+function target_form_validate($form, $form_state){
+}
+
+function target_form_submit($form, $form_state){
+  $tmp_name = tempnam("", "MUT");
+  $cancer = $form_state['values']['tumtype'];
+  $muttype = "12";
+  $gene = $form_state['values']['gene'];
+  $pvalue = $form_state['values']['pvalue'];
+  $foldchange = $form_state['values']['foldchange'];
+  $mutprev = $form_state['values']['prevalence'];
+  $filtgene = $form_state['values']['filtergene'];
+  $filttype = $form_state['values']['filtertype'];
+
+  chdir('sites/all/modules/mutarget/');
+  $cmd = "Rscript target.R $tmp_name $cancer $muttype $gene $pvalue $foldchange $mutprev $filtgene $filttype";
+
+  $proc = popen($cmd, "r");
+  while (!feof($proc)){
+    $data = fread($proc, 1025);
+  }
+  pclose($proc);
+
+  $_SESSION['mutarget_res'] = $tmp_name;
+  $_SESSION['input_gene'] = $gene;
+  drupal_goto('MuTarget');
+}

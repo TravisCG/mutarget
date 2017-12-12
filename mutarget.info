@@ -1,0 +1,3 @@
+name = MuTarget
+description = Mutarget webservice
+core = 7.x
