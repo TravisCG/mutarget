@@ -29,7 +29,7 @@ filterout    <- argv[9]
 proc.time()
 print("MESSAGE: Start")
 # MySQL connection
-con  <- dbConnect(MySQL(), user="root", password="mta56TTK", dbname="mutarget", host="localhost")
+con  <- dbConnect(MySQL(), user="XXXX", password="XXXX", dbname="mutarget", host="localhost")
 
 # Expression matrix
 count <- as.matrix(read.table(paste(cancerid, "tsv", sep = "."), check.names = F, sep = "\t"))

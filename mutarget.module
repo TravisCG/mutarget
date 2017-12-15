@@ -116,8 +116,8 @@ function gene_autocomplete($string) {
 
   $mutarget_db = array(
     'database' => 'mutarget',
-    'username' => 'root',
-    'password' => 'mta56TTK',
+    'username' => 'XXXX',
+    'password' => 'XXXX',
     'host' => 'localhost',
     'driver' => 'mysql',
   );
@@ -338,8 +338,8 @@ function get_mutated_samples($form, $form_state){
 
   $mutarget_db = array(
     'database' => 'mutarget',
-    'username' => 'root',
-    'password' => 'mta56TTK',
+    'username' => 'XXXX',
+    'password' => 'XXXX',
     'host' => 'localhost',
     'driver' => 'mysql',
   );
