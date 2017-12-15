@@ -29,7 +29,7 @@ filterout    <- argv[9]
 proc.time()
 print("MESSAGE: Start")
 # MySQL connection
-con  <- dbConnect(MySQL(), user="XXXX", password="XXXX", dbname="mutarget", host="localhost")
+con  <- dbConnect(MySQL(), user="root", password="mta56TTK", dbname="mutarget", host="localhost")
 
 # Expression matrix
 count <- as.matrix(read.table(paste(cancerid, "tsv", sep = "."), check.names = F, sep = "\t"))
@@ -69,11 +69,13 @@ winp <- data.frame(exp = exp[testgene,], mutant = 0)
 # Get all the genes
 maxcount <- length(unique(sub("-...-...-....-..$","",rownames(coldata)))) # maximum number of mutation should be less than all the samples (prevent one group syndrome)
 mincount <- trunc(maxcount * mutprev / 100) # minimum number of mutation calculated from mutation prevalence
-query.g <- paste("select genename from (select genename,count(name) as patientcount from genetable inner join (mutation,individual) on (geneid = genetable_geneid and individual_patientid = patientid) where muteffect_effectid = ",effect," and individual_cancerid = ",cancerid," group by genename order by genename) as counttable where patientcount > ",mincount," and patientcount < ",maxcount,sep="")
-query <- paste("select name,genename from mutation inner join (genetable,individual) on (genetable_geneid = geneid and patientid = individual_patientid) where individual_cancerid = ",cancerid," and muteffect_effectid = ",effect," and genename in (",query.g,");",sep="")
+
+query <- paste("select name,genename from mutation inner join (genetable,individual) on (genetable_geneid = geneid and patientid = individual_patientid) where individual_cancerid = ",cancerid," and muteffect_effectid = ",effect,";", sep = "")
+
 rs <- dbSendQuery(con, query)
 mutmatrix <- fetch(rs, n=-1)
 mutmatrix <- as.data.frame.matrix(table(mutmatrix$genename, mutmatrix$name))
+mutmatrix <- mutmatrix[rowSums(mutmatrix) > mincount & rowSums(mutmatrix) < maxcount,]
 
 result_table <- data.frame(foldchange = rep(0, nrow(mutmatrix)), pvalue = rep(1,nrow(mutmatrix)), adj.pval = rep(1,nrow(mutmatrix)))
 rownames(result_table) <- rownames(mutmatrix)

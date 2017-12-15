@@ -51,9 +51,10 @@ function mutarget_menu() {
   return($items);
 }
 
-function add_header($inpgene) {
+function add_header($inpgene, $mutnum, $totnum) {
   $html = "Input gene: " . $inpgene . "<br />\n";
-  $html = $html . "Number of mutations: Soon<br />\n";
+  $html = $html . "Number of mutated samples: " . $mutnum . "<br />\n";
+  $html = $html . "Total number of samples: " . $totnum . "<br .>\n";
   return $html;
 }
 
@@ -99,7 +100,7 @@ function mutarget_inputform($formchoose) {
     $form = drupal_get_form($formchoose);
   } else {
     if (isset($_SESSION['mutarget_res'])) {
-      $form = add_header($_SESSION['input_gene']);
+      $form = add_header($_SESSION['input_gene'], $_SESSION['mutsamplesnum'], $_SESSION['totalsamplenum']);
       $form = $form . create_table($_SESSION['mutarget_res']);
       $form = $form . add_pictures($_SESSION['mutarget_res']);
     } else {
@@ -115,8 +116,8 @@ function gene_autocomplete($string) {
 
   $mutarget_db = array(
     'database' => 'mutarget',
-    'username' => 'XXXX',
-    'password' => 'XXXX',
+    'username' => 'root',
+    'password' => 'mta56TTK',
     'host' => 'localhost',
     'driver' => 'mysql',
   );
@@ -145,6 +146,12 @@ function genotype_form($form, $form_state) {
     '#type' => 'textfield',
     '#title' => t('Input genes'),
     '#autocomplete_path' => 'MuTarget/autocomplete',
+    '#ajax' => array(
+      'callback' => 'get_mutated_samples',
+      'event' => 'change',
+      'wrapper' => 'samplesize',
+      'method' => 'replace',
+    ),
   );
 
   if (!empty($user->name)) {
@@ -166,19 +173,23 @@ function genotype_form($form, $form_state) {
       '12' => t('Skin Cutaneous Melanoma'),
     ),
     '#default_value' => '1',
+    '#ajax' => array(
+      'callback' => 'get_mutated_samples',
+      'event' => 'change',
+      'wrapper' => 'samplesize',
+      'method' => 'replace',
+    ),
   );
   } else {
     $form['tumtype'] = array(
       '#type' => 'hidden',
       '#value' => '1',
     );
-    $form['dummy'] = array(
-      '#type' => 'textfield',
-      '#title' => t('Tumour type'),
-      '#value' => t('Breast Invasive Carcinoma'),
-      '#disabled' => TRUE,
-    );
   }
+
+  $form['mutnumber'] = array(
+    '#markup' => '<div id="samplesize"><label>All|mutated samples:</label></div>',
+  );
 
   $form['advanced'] = array(
     '#type' => 'fieldset',
@@ -214,6 +225,12 @@ function genotype_form($form, $form_state) {
       '28' => t('TF binding site'),
     ),
     '#default_value' => '12',
+    '#ajax' => array(
+      'callback' => 'get_mutated_samples',
+      'wrapper' => 'samplesize',
+      'event' => 'change',
+      'method' => 'replace',
+    ),
   );
 
   $form['advanced']['filtertype'] = array(
@@ -312,6 +329,35 @@ function genotype_form_submit($form, $form_state){
 }
 
 /**
+ * Ajax function to update the mutation number in div#mutnumber
+ */
+function get_mutated_samples($form, $form_state){
+  $muttype = $form['advanced']['muttype']['#value'];
+  $tumtype = $form['tumtype']['#value'];
+  $gene    = $form['genes']['#value'];
+
+  $mutarget_db = array(
+    'database' => 'mutarget',
+    'username' => 'root',
+    'password' => 'mta56TTK',
+    'host' => 'localhost',
+    'driver' => 'mysql',
+  );
+
+  Database::addConnectionInfo('mutarget', 'default', $mutarget_db);
+
+  db_set_active('mutarget');
+  $all = db_query("select count(distinct(name)) as counted from individual where cancer_cancerid =" . $tumtype . ";")->fetchField();
+  $mutated = db_query("select count(distinct(name)) as mutated from mutation left join (cancer,genetable,muteffect,individual) on (individual_cancerid = cancerid and genetable_geneid = geneid and muteffect_effectid = effectid and individual_patientid = patientid) where effectid = " . $muttype . " and cancerid = " . $tumtype . " and genename = '" . $gene . "';")->fetchField();
+  $_SESSION['mutsamplesnum'] = $mutated;
+  $_SESSION['totalsamplenum'] = $all;
+
+  db_set_active();
+
+  return '<div id="samplesize"><label>All|mutated samples:</label> ' . $all . "|" . $mutated . '</div>';
+}
+
+/**
  * Create Target forms
  */ 
 function target_form($form, $form_state){
@@ -347,12 +393,6 @@ function target_form($form, $form_state){
     $form['tumtype'] = array(
       '#type' => 'hidden',
       '#value' => '1',
-    );
-    $form['dummy'] = array(
-      '#type' => 'textfield',
-      '#title' => t('Tumour type'),
-      '#value' => t('Breast Invasive Carcinoma'),
-      '#disabled' => TRUE,
     );
   }
 
