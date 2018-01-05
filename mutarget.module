@@ -136,6 +136,29 @@ function gene_autocomplete($string) {
   drupal_json_output($matches);
 }
 
+function fill_with_common_genes() {
+  $common      = array('0' => 'Please choose one');	
+
+  $mutarget_db = array(
+    'database' => 'mutarget',
+    'username' => 'XXXX',
+    'password' => 'XXXX',
+    'host' => 'localhost',
+    'driver' => 'mysql',
+  );
+
+  Database::addConnectionInfo('mutarget', 'default', $mutarget_db);
+  db_set_active('mutarget');
+  $result = db_query("select genename as gn from TCGAandMetabricGenes");
+
+  foreach ($result as $rec) {
+     $common[$rec->gn] = $rec->gn;
+  }
+
+  db_set_active();
+  return($common);
+}
+
 /**
  * Genotype form
  */
@@ -191,11 +214,31 @@ function genotype_form($form, $form_state) {
     '#markup' => '<div id="samplesize"><label>All|mutated samples:</label></div>',
   );
 
+  $form['genesetchooser'] = array(
+    '#type' => 'select',
+    '#title' => t('Input gene mutated in TCGA and Metabric'),
+    '#options' => fill_with_common_genes(),
+    '#ajax' => array(
+      'callback' => 'put_gene_name',
+    ),
+    '#default_value' => '0',
+  );
+
   $form['advanced'] = array(
     '#type' => 'fieldset',
     '#title' => t('Advanced options'),
     '#collapsible' => TRUE,
     '#collapsed' => TRUE,
+  );
+
+  $form['advanced']['datasourcechooser'] = array(
+    '#type' => 'radios',
+    '#title' => t('Choose data source'),
+    '#options' => array(
+      'TCGA' => t('TCGA'),
+      'TCGAandMetabric' => t('TCGA + Metabric'),
+    ),
+    '#default_value' => 'TCGAandMetabric',
   );
 
   $form['advanced']['muttype'] = array(
@@ -312,11 +355,11 @@ function genotype_form_submit($form, $form_state){
   $foldchange = $form_state['values']['foldchange'];
   $outtable = $form_state['values']['table'];
   $numtopgenes = $form_state['values']['numtopgenes'];
+  $dbsrc = $form_state['values']['datasourcechooser'];
   $filtgene = $form_state['values']['filtergene'];
   $filttype = $form_state['values']['filtertype'];
-
   chdir('sites/all/modules/mutarget/');
-  $cmd = "Rscript genotype.R $tmp_name $genes $muttype $cancer $pvalue $foldchange $outtable $numtopgenes $filtgene $filttype";
+  $cmd = "Rscript genotype.R $tmp_name $genes $muttype $cancer $pvalue $foldchange $outtable $numtopgenes $dbsrc $filtgene $filttype";
   $proc = popen($cmd, "r");
   while (!feof($proc)){
     $data = fread($proc, 1025);
@@ -355,6 +398,13 @@ function get_mutated_samples($form, $form_state){
   db_set_active();
 
   return '<div id="samplesize"><label>All|mutated samples:</label> ' . $all . "|" . $mutated . '</div>';
+}
+
+/**
+ * Ajax function to put the selected gene into the input text box
+ */
+function put_gene_name($form, $form_state){
+  return $form['genes'];
 }
 
 /**
@@ -476,5 +526,7 @@ function target_form_submit($form, $form_state){
 
   $_SESSION['mutarget_res'] = $tmp_name;
   $_SESSION['input_gene'] = $gene;
+  $_SESSION['mutsamplesnum'] = "";
+  $_SESSION['totalsamplenum'] = "";
   drupal_goto('MuTarget');
 }

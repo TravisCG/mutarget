@@ -7,6 +7,9 @@ suppressMessages(library(partykit))
 runWilcox <- function(x, winp){
         samples <- names(x)[x > 0]
         index <- grep(paste(samples, collapse="|"), rownames(winp))
+	if(length(index) == 0){
+		return(c(1.0, 0))
+	}
         winp[index,]$mutant <- 1
         testres <- wilcox.test(exp~mutant, data = winp)
         expmu <- median(winp[winp$mutant == 1,1])
@@ -40,7 +43,7 @@ print("MESSAGE: Exp matrix")
 coldata <- data.frame(gene = rep("WT", ncol(count)))
 rownames(coldata) <- colnames(count)
 
-# Sample filtering TODO Maybe it is worth to put it into the query.exp?
+# Sample filtering
 if(!is.na(filtergene)){
 	if(filterout == 'include'){
 		query <- paste("select distinct(name) as samples from individual inner join (mutation,genetable) on (individual_patientid = patientid and genetable_geneid = geneid) where cancer_cancerid = ",cancerid," and genename = '",filtergene,"';",sep="")
@@ -67,16 +70,17 @@ print("MESSAGE: Normalisation")
 winp <- data.frame(exp = exp[testgene,], mutant = 0)
 
 # Get all the genes
-maxcount <- length(unique(sub("-...-...-....-..$","",rownames(coldata)))) # maximum number of mutation should be less than all the samples (prevent one group syndrome)
-mincount <- trunc(maxcount * mutprev / 100) # minimum number of mutation calculated from mutation prevalence
+shortnames <- sub("-...-...-....-..$","",rownames(coldata))
+maxcount   <- length(unique(shortnames)) # maximum number of mutation should be less than all the samples (prevent one group syndrome)
+mincount   <- trunc(maxcount * mutprev / 100) # minimum number of mutation calculated from mutation prevalence
 
 query <- paste("select name,genename from mutation inner join (genetable,individual) on (genetable_geneid = geneid and patientid = individual_patientid) where individual_cancerid = ",cancerid," and muteffect_effectid = ",effect,";", sep = "")
 
 rs <- dbSendQuery(con, query)
 mutmatrix <- fetch(rs, n=-1)
 mutmatrix <- as.data.frame.matrix(table(mutmatrix$genename, mutmatrix$name))
+mutmatrix[mutmatrix > 0] <- 1 # We need a binary matrix
 mutmatrix <- mutmatrix[rowSums(mutmatrix) > mincount & rowSums(mutmatrix) < maxcount,]
-
 result_table <- data.frame(foldchange = rep(0, nrow(mutmatrix)), pvalue = rep(1,nrow(mutmatrix)), adj.pval = rep(1,nrow(mutmatrix)))
 rownames(result_table) <- rownames(mutmatrix)
 
@@ -93,8 +97,31 @@ print("MESSAGE: End iteration")
 # Multiple test correction
 result_table$adj.pval <- p.adjust(result_table$pvalue, "BH")
 
-#Filtering and producing pictures
+#Filtering and producing table
 result_table <- result_table[result_table$adj.pval < qvalcutoff & result_table$foldchange > foldchcutoff,]
-
 write.table(format(result_table, digits = 2), paste(tmpprefix, "tsv",sep="."), quote=F, sep ="\t")
 
+# Decision tree
+mutmatrix2 <- data.frame(lapply(mutmatrix, factor, levels = c(0,1), labels=c("WT","Mut")), check.names = F)
+rownames(mutmatrix2) <- rownames(mutmatrix)
+ctree <- cbind(winp[,1,drop=F], t(mutmatrix2[,shortnames]))
+resulttree <- ctree(exp ~ ., data = ctree, , control = ctree_control(maxdepth=3, minprob=mutprev/100,testtype=c("Univariate")))
+proc.time()
+print("MESSAGE: Decision tree created")
+
+png(paste(tmpprefix,"dectree.png",sep="."))
+plot(resulttree)
+dev.off()
+
+# Boxplots
+proc.time()
+print("MESSAGE: Start creating boxplots")
+for(gene in rownames(result_table)){
+	f <- as.formula(paste("exp ~ ", gene, sep=""))
+	png(paste(tmpprefix,gene,"png",sep="."))
+	boxplot(f, data = ctree, main = paste(testgene, "expression", sep = " "), xlab = paste(gene, "mutation status", sep = " "))
+	dev.off()
+}
+
+proc.time()
+print("MESSAGE: End script")
