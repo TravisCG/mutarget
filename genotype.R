@@ -110,11 +110,14 @@ if(cancerid == 1 && dbsrc == 'TCGAandMetabric'){
 			quit(save="no")
 		}
 		# Removing log for stupid users
-		write.table(des2, "/tmp/checkit.tsv", sep = "\t", quote = F)
 		des2$logFC <- exp(des2$logFC)
 		colnames(des2)[1] <- "foldchange"
 		# Create a hybrid table with duplicated fold change
 		commongenes <- intersect(rownames(des), rownames(des2))
+		if(length(commongenes) == 0){
+			print("MESSAGE: No common results between Metabric and TCGA")
+			quit(save="no")
+		}
 		des <- des[commongenes,c(1,3,4)]
 		des2 <- des2[commongenes,c(1,4,5)]
 		des <- cbind(des,des2)

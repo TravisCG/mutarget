@@ -144,7 +144,7 @@ function gene_autocomplete($string) {
 }
 
 function fill_with_common_genes() {
-  $common      = array('0' => 'Please choose one');	
+  $common      = array('' => 'Please choose one');	
 
   change_to_mutargetdb();
   $result = db_query("select genename as gn from TCGAandMetabricGenes order by genename");
@@ -372,13 +372,19 @@ function genotype_form_submit($form, $form_state){
   $filtgene = $form_state['values']['filtergene'];
   $filttype = $form_state['values']['filtertype'];
   chdir('sites/all/modules/mutarget/');
-  $cmd = "Rscript genotype.R $tmp_name $genes $muttype $cancer $pvalue $foldchange $outtable $numtopgenes $dbsrc $filtgene $filttype";
-  $proc = popen($cmd, "r");
-  while (!feof($proc)){
-    $data = fread($proc, 1025);
+  // Use cache data to speed up the process
+  if ($muttype == 12 && $cancer == 1 && $pvalue == 0.05 && $foldchange == 1.44 && $outtable == "all" && $numtopgenes == 5 && $filtgene == "" && $filttype == ""){
+    $tmp_name = "sites/all/modules/mutarget/cache/cache.$genes.$dbsrc";
   }
-  pclose($proc);
-  //drupal_set_message($cmd);
+  else {
+    $cmd = "Rscript genotype.R $tmp_name $genes $muttype $cancer $pvalue $foldchange $outtable $numtopgenes $dbsrc $filtgene $filttype";
+    $proc = popen($cmd, "r");
+    while (!feof($proc)){
+      $data = fread($proc, 1025);
+    }
+    pclose($proc);
+    //drupal_set_message($cmd);
+  }
   $_SESSION['mutarget_res'] = $tmp_name;
   $_SESSION['input_gene'] = $genes;
   drupal_goto('MuTarget');
