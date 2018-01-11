@@ -1,5 +1,6 @@
 suppressMessages(library(RMySQL))
 suppressMessages(library(edgeR))
+suppressMessages(library(DESeq2))
 suppressMessages(library(limma))
 
 argv       <- commandArgs(trailing = T)
@@ -12,8 +13,9 @@ foldchange <- as.numeric(argv[6])
 genetable  <- argv[7]
 plotnum    <- argv[8]
 dbsrc      <- argv[9]
-filtergene <- argv[10]
-filterout  <- argv[11]
+diffexp    <- argv[10]
+filtergene <- argv[11]
+filterout  <- argv[12]
 
 proc.time()
 print("MESSAGE: Start")
@@ -66,18 +68,31 @@ proc.time()
 print("MESSAGE: Get mutant samples")
 
 # Differential expression using edgeR
-edge <- DGEList(counts = count, group = coldata$gene)
-keep <- rowSums(cpm(edge) > 1) > 2
-edge <- edge[keep, , keep.lib.sizes=FALSE]
-edge <- calcNormFactors(edge)
-edge <- estimateDisp(edge)
-des  <- exactTest(edge)
-des  <- as.data.frame(topTags(des, n = 32000, p.value = pvalue))
-des  <- des[abs(des$logFC) > foldchange,]
-# I need to remove log, because "Our users cannot understand it..."
-# No further comment
-des$logFC <- exp(des$logFC)
-colnames(des)[1] <- "foldchange"
+if(diffexp == "edgeR"){
+	edge <- DGEList(counts = count, group = coldata$gene)
+	keep <- rowSums(cpm(edge) > 1) > 2
+	edge <- edge[keep, , keep.lib.sizes=FALSE]
+	edge <- calcNormFactors(edge)
+	edge <- estimateDisp(edge)
+	des  <- exactTest(edge)
+	des  <- as.data.frame(topTags(des, n = 32000, p.value = pvalue))
+	des  <- des[abs(des$logFC) > foldchange,]
+	# I need to remove log, because "Our users cannot understand it..."
+	# No further comment
+	des$logFC <- exp(des$logFC)
+	colnames(des)[1] <- "foldchange"
+	normexp <- cpm(edge)
+} else {
+	des <- DESeqDataSetFromMatrix(count, colData = coldata, design =~gene)
+	des <- DESeq(des)
+	normexp <- assay(vst(des)) # Later we will overwrite variable des
+	des <- results(des, contrast = c("gene", "Mut", "WT"))
+	des <- des[!is.na(des$padj) & des$padj < pvalue & abs(des$log2FoldChange) > foldchange,]
+	# Removing logarithm
+	des$log2FoldChange <- exp(des$log2FoldChange)
+	colnames(des)[2] <- "foldchange"
+	des <- as.matrix(des)
+}
 
 proc.time()
 print("MESSAGE: Differential expression")
@@ -153,7 +168,7 @@ if(plotnum == "all" | as.numeric(plotnum) > nrow(des)){
 for(index in 1:plotnum){
    gene <- rownames(des)[index]
    png(paste(tmpprefix,gene,"png",sep="."))
-   boxplot(cpm(edge)[gene, rownames(coldata[coldata$gene == "Mut",,drop=F])], cpm(edge)[gene,rownames(coldata[coldata$gene == "WT",,drop=F])], main = paste(gene, "expression", sep=" "), names = c("Mutant", "WT"))
+   boxplot(normexp[gene, rownames(coldata[coldata$gene == "Mut",,drop=F])], normexp[gene,rownames(coldata[coldata$gene == "WT",,drop=F])], main = paste(gene, "expression", sep=" "), names = c("Mutant", "WT"))
    dev.off()
 }
 

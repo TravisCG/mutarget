@@ -289,6 +289,16 @@ function genotype_form($form, $form_state) {
     ),
   );
 
+  $form['advanced']['diffexp'] = array(
+    '#type' => 'select',
+    '#title' => t('Differential expression calculation (TCGA only)'),
+    '#options' => array(
+      'edgeR' => t('edgeR'),
+      'DESeq2' => t('DESeq2'),
+    ),
+    '#default_value' => 'edgeR',
+  );
+
   $form['advanced']['filtertype'] = array(
     '#type' => 'radios',
     '#title' => t('Use mutation filter'),
@@ -360,24 +370,25 @@ function genotype_form_validate($form, $form_state){
 }
 
 function genotype_form_submit($form, $form_state){
-  $tmp_name = tempnam("", "MUT");
-  $genes    = $form_state['values']['genes'];
-  $muttype  = $form_state['values']['muttype'];
-  $cancer   = $form_state['values']['tumtype'];
-  $pvalue   = $form_state['values']['pvalue'];
-  $foldchange = $form_state['values']['foldchange'];
-  $outtable = $form_state['values']['table'];
+  $tmp_name    = tempnam("", "MUT");
+  $genes       = $form_state['values']['genes'];
+  $muttype     = $form_state['values']['muttype'];
+  $cancer      = $form_state['values']['tumtype'];
+  $pvalue      = $form_state['values']['pvalue'];
+  $foldchange  = $form_state['values']['foldchange'];
+  $outtable    = $form_state['values']['table'];
   $numtopgenes = $form_state['values']['numtopgenes'];
-  $dbsrc = $form_state['values']['datasourcechooser'];
-  $filtgene = $form_state['values']['filtergene'];
-  $filttype = $form_state['values']['filtertype'];
+  $dbsrc       = $form_state['values']['datasourcechooser'];
+  $diffexp     = $form_state['values']['diffexp'];
+  $filtgene    = $form_state['values']['filtergene'];
+  $filttype    = $form_state['values']['filtertype'];
   chdir('sites/all/modules/mutarget/');
   // Use cache data to speed up the process
-  if ($muttype == 12 && $cancer == 1 && $pvalue == 0.05 && $foldchange == 1.44 && $outtable == "all" && $numtopgenes == 5 && $filtgene == "" && $filttype == ""){
+  if ($muttype == 12 && $cancer == 1 && $pvalue == 0.05 && $foldchange == 1.44 && $outtable == "all" && $numtopgenes == 5 && $filtgene == "" && $filttype == "" && $diffexp == 'edgeR'){
     $tmp_name = "sites/all/modules/mutarget/cache/cache.$genes.$dbsrc";
   }
   else {
-    $cmd = "Rscript genotype.R $tmp_name $genes $muttype $cancer $pvalue $foldchange $outtable $numtopgenes $dbsrc $filtgene $filttype";
+    $cmd = "Rscript genotype.R $tmp_name $genes $muttype $cancer $pvalue $foldchange $outtable $numtopgenes $dbsrc $diffexp $filtgene $filttype";
     $proc = popen($cmd, "r");
     while (!feof($proc)){
       $data = fread($proc, 1025);
