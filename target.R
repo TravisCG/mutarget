@@ -17,6 +17,7 @@ runWilcox <- function(x, winp){
         foldchange <- max(expmu, expwt) / min(expmu, expwt)
         return(c(testres$p.value, foldchange))
 }
+source("common.R")
 
 # Command line arguments
 argv         <- commandArgs(trailing = T)
@@ -31,8 +32,6 @@ filtergene   <- argv[8]
 filterout    <- argv[9]
 proc.time()
 print("MESSAGE: Start")
-# MySQL connection
-con  <- dbConnect(MySQL(), user="XXXX", password="XXXX", dbname="mutarget", host="localhost")
 
 # Expression matrix
 count <- as.matrix(read.table(paste(cancerid, "tsv", sep = "."), check.names = F, sep = "\t"))
@@ -50,8 +49,7 @@ if(!is.na(filtergene)){
 	} else {
 		query <- paste("select distinct(name) as samples from individual where cancer_cancerid = ",cancerid," and name not in ( select distinct(name) from individual inner join (mutation,genetable) on (individual_patientid = patientid and genetable_geneid = geneid) where cancer_cancerid = ",cancerid," and genename = '",filtergene,"' );",sep="")
 	}
-	rs      <- dbSendQuery(con, query)
-	raw     <- fetch(rs, n=-1)
+	raw     <- fetchDB(con, query)
 	index   <- grep(paste(raw$samples, collapse="|"), rownames(coldata))
 	coldata <- coldata[index,,drop=F]
 	count   <- count[,index]
@@ -76,8 +74,7 @@ mincount   <- trunc(maxcount * mutprev / 100) # minimum number of mutation calcu
 
 query <- paste("select name,genename from mutation inner join (genetable,individual) on (genetable_geneid = geneid and patientid = individual_patientid) where individual_cancerid = ",cancerid," and muteffect_effectid = ",effect,";", sep = "")
 
-rs <- dbSendQuery(con, query)
-mutmatrix <- fetch(rs, n=-1)
+mutmatrix <- fetchDB(con, query)
 mutmatrix <- as.data.frame.matrix(table(mutmatrix$genename, mutmatrix$name))
 mutmatrix[mutmatrix > 0] <- 1 # We need a binary matrix
 mutmatrix <- mutmatrix[rowSums(mutmatrix) > mincount & rowSums(mutmatrix) < maxcount,]
@@ -119,7 +116,7 @@ print("MESSAGE: Start creating boxplots")
 for(gene in rownames(result_table)){
 	f <- as.formula(paste("exp ~ ", gene, sep=""))
 	png(paste(tmpprefix,gene,"png",sep="."))
-	boxplot(f, data = ctree, main = paste(testgene, "expression", sep = " "), xlab = paste(gene, "mutation status", sep = " "))
+	boxplot(f, data = ctree, main = paste(testgene, "expression", sep = " "), xlab = paste(gene, "mutation status", sep = " "), outline = F)
 	dev.off()
 }
 

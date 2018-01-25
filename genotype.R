@@ -3,10 +3,12 @@ suppressMessages(library(edgeR))
 suppressMessages(library(DESeq2))
 suppressMessages(library(limma))
 
+source("common.R")
+
 argv       <- commandArgs(trailing = T)
 tmpprefix  <- argv[1]
 genes      <- argv[2]
-muttype    <- argv[3]
+muttype    <- argv[3] #FIXME This is a comma separated list
 cancerid   <- argv[4]
 pvalue     <- as.numeric(argv[5])
 foldchange <- as.numeric(argv[6])
@@ -19,8 +21,6 @@ filterout  <- argv[12]
 
 proc.time()
 print("MESSAGE: Start")
-# MySQL connection
-con  <- dbConnect(MySQL(), user="XXXX", password="XXXX", dbname="mutarget", host="localhost")
 
 # Expression matrix
 count <- as.matrix(read.table(paste(cancerid, "tsv", sep = "."), check.names = F, sep = "\t"))
@@ -46,19 +46,17 @@ if(!is.na(filtergene)){
 							     );",sep="")
 	}
 
-	rs        <- dbSendQuery(con, query.samples)
-	raw       <- fetch(rs, n=-1)
+	raw       <- fetchDB(con, query.samples);
 	coldata   <- coldata[rownames(coldata) %in% raw$samples,,drop=F]
 	count     <- count[,colnames(count) %in% raw$samples]
 }
 
 # Get mutant samples for coldata
-genes <- strsplit(genes, ",")
-genes <- paste("genename = '",gsub(",","' or genename = '",genes),"'",sep="")
-query <- paste("select distinct(name) as samples from individual inner join (mutation,genetable) on (individual_patientid = patientid and genetable_geneid = geneid) where cancer_cancerid = ",cancerid," and (",genes,") and muteffect_effectid = ",muttype,";",sep="")
-rs    <- dbSendQuery(con, query)
-raw   <- fetch(rs, n=-1)
-index <- grep(paste(raw$samples, collapse="|"), rownames(coldata))
+genes   <- paste("genename in ('",gsub(",","','",genes),"')",sep="")
+muttype <- paste("muteffect_effectid in (",muttype,")",sep="")
+query   <- paste("select distinct(name) as samples from individual inner join (mutation,genetable) on (individual_patientid = patientid and genetable_geneid = geneid) where cancer_cancerid = ",cancerid," and ",genes," and ",muttype,";",sep="")
+raw     <- fetchDB(con, query)
+index   <- grep(paste(raw$samples, collapse="|"), rownames(coldata))
 coldata$gene[index] <- "Mut"
 if(length(coldata[coldata$gene == "Mut",]) == 0){
 	print("MESSAGE: Not enough samples with alteration to split into cohorts")
@@ -98,11 +96,10 @@ proc.time()
 print("MESSAGE: Differential expression")
 
 # If we would like to process Metabric data
-if(cancerid == 1 && dbsrc == 'TCGAandMetabric'){
+if(cancerid == 3 && dbsrc == 2){ #FIXME We need to fetch expression_type from the database
 	metaexp <- as.matrix(read.table("data_expression.txt", sep = "\t", check.names = F))
-	query   <- paste("select distinct(submitid) as samples from individual inner join (mutation, genetable) on (individual_patientid = patientid and genetable_geneid = geneid) where cancer_cancerid = ",cancerid," and (",genes,") and muteffect_effectid = ",muttype,";", sep = "")
-	rs      <- dbSendQuery(con, query)
-	raw     <- fetch(rs, n=-1)
+	query   <- paste("select distinct(submitid) as samples from individual inner join (mutation, genetable) on (individual_patientid = patientid and genetable_geneid = geneid) where cancer_cancerid = ",cancerid," and ",genes," and ",muttype,";", sep = "")
+	raw     <- fetchDB(con, query)
 	# Creating coldata
 	design  <- rep("WT",ncol(metaexp))
 	names(design) <- colnames(metaexp)
@@ -149,8 +146,7 @@ if(genetable != "all"){
 	} else {
 		query <- "select genename from genetable where fda = 1;"
 	}
-	rs    <- dbSendQuery(con, query)
-	raw   <- fetch(rs, n=-1)
+	raw   <- fetchDB(con, query)
 	index <- grep(paste(raw$genename, collapse="|"), rownames(des))
 	des   <- des[index,]
 }
@@ -168,7 +164,7 @@ if(plotnum == "all" | as.numeric(plotnum) > nrow(des)){
 for(index in 1:plotnum){
    gene <- rownames(des)[index]
    png(paste(tmpprefix,gene,"png",sep="."))
-   boxplot(normexp[gene, rownames(coldata[coldata$gene == "Mut",,drop=F])], normexp[gene,rownames(coldata[coldata$gene == "WT",,drop=F])], main = paste(gene, "expression", sep=" "), names = c("Mutant", "WT"))
+   boxplot(normexp[gene, rownames(coldata[coldata$gene == "Mut",,drop=F])], normexp[gene,rownames(coldata[coldata$gene == "WT",,drop=F])], main = paste(gene, "expression", sep=" "), names = c("Mutant", "WT"), outline = F)
    dev.off()
 }
 
