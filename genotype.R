@@ -23,7 +23,7 @@ proc.time()
 print("MESSAGE: Start")
 
 # Expression matrix
-count <- as.matrix(read.table(paste(cancerid, "tsv", sep = "."), check.names = F, sep = "\t"))
+count <- getExpMatrix(con, cancerid, dbsrc)
 proc.time()
 print("MESSAGE: Expression matrix")
 
@@ -66,78 +66,50 @@ proc.time()
 print("MESSAGE: Get mutant samples")
 
 # Differential expression using edgeR
-if(diffexp == "edgeR"){
-	edge <- DGEList(counts = count, group = coldata$gene)
-	keep <- rowSums(cpm(edge) > 1) > 2
-	edge <- edge[keep, , keep.lib.sizes=FALSE]
-	edge <- calcNormFactors(edge)
-	edge <- estimateDisp(edge)
-	des  <- exactTest(edge)
-	des  <- as.data.frame(topTags(des, n = 32000, p.value = pvalue))
-	des  <- des[abs(des$logFC) > foldchange,]
-	# I need to remove log, because "Our users cannot understand it..."
-	# No further comment
+if(dbsrc != 2){
+	# rna-seq
+	if(diffexp == "edgeR"){
+		edge <- DGEList(counts = count, group = coldata$gene)
+		keep <- rowSums(cpm(edge) > 1) > 2
+		edge <- edge[keep, , keep.lib.sizes=FALSE]
+		edge <- calcNormFactors(edge)
+		edge <- estimateDisp(edge)
+		des  <- exactTest(edge)
+		des  <- as.data.frame(topTags(des, n = 32000, p.value = pvalue))
+		des  <- des[abs(des$logFC) > foldchange,]
+		# I need to remove log, because "Our users cannot understand it..."
+		# No further comment
+		des$logFC <- exp(des$logFC)
+		colnames(des)[1] <- "foldchange"
+		des  <- des[,c(1,3,4)]
+		normexp <- cpm(edge)
+	} else if(diffexp == "DESeq2") {
+		des <- DESeqDataSetFromMatrix(count, colData = coldata, design =~gene)
+		des <- DESeq(des)
+		normexp <- assay(vst(des)) # Later we will overwrite variable des
+		des <- results(des, contrast = c("gene", "Mut", "WT"))
+		des <- des[!is.na(des$padj) & des$padj < pvalue & abs(des$log2FoldChange) > foldchange,]
+		# Removing logarithm
+		des$log2FoldChange <- exp(des$log2FoldChange)
+		colnames(des)[2] <- "foldchange"
+		des <- as.matrix(des)[,c(2,5,6)]
+	}
+} else {
+	# microarray
+	mm <- model.matrix( ~0 + coldata$gene)
+	colnames(mm) <- c("Mut", "WT")
+	fit <- lmFit(count, mm)
+	contr <- makeContrasts(Mut-WT, levels = mm)
+	fit <- contrasts.fit(fit, contr)
+	fit <- eBayes(fit)
+	des <- topTable(fit, adjust.method="BH",p.value=pvalue,number=80000) #FIXME filtering by foldchange is missing
 	des$logFC <- exp(des$logFC)
 	colnames(des)[1] <- "foldchange"
-	normexp <- cpm(edge)
-} else {
-	des <- DESeqDataSetFromMatrix(count, colData = coldata, design =~gene)
-	des <- DESeq(des)
-	normexp <- assay(vst(des)) # Later we will overwrite variable des
-	des <- results(des, contrast = c("gene", "Mut", "WT"))
-	des <- des[!is.na(des$padj) & des$padj < pvalue & abs(des$log2FoldChange) > foldchange,]
-	# Removing logarithm
-	des$log2FoldChange <- exp(des$log2FoldChange)
-	colnames(des)[2] <- "foldchange"
-	des <- as.matrix(des)
+	normexp <- count # microarray already normalised
 }
 
 proc.time()
 print("MESSAGE: Differential expression")
-
-# If we would like to process Metabric data
-if(cancerid == 3 && dbsrc == 2){ #FIXME We need to fetch expression_type from the database
-	metaexp <- as.matrix(read.table("data_expression.txt", sep = "\t", check.names = F))
-	query   <- paste("select distinct(submitid) as samples from individual inner join (mutation, genetable) on (individual_patientid = patientid and genetable_geneid = geneid) where cancer_cancerid = ",cancerid," and ",genes," and ",muttype,";", sep = "")
-	raw     <- fetchDB(con, query)
-	# Creating coldata
-	design  <- rep("WT",ncol(metaexp))
-	names(design) <- colnames(metaexp)
-	design[names(design) %in% raw$samples] <- "Mut"
-	# Check if there is two groups
-	l <- length(design[design == "Mut"])
-	if(l == 0 || l == length(design)){
-		print("There is no two groups for Metabric")
-	} else {
-		mm <- model.matrix( ~0 + factor(design,levels=c("Mut","WT")))
-		colnames(mm) <- c("Mut", "WT")
-		# Limma differential expression
-		fit <- lmFit(metaexp, mm)
-		contr <- makeContrasts(Mut-WT, levels = mm)
-		fit <- contrasts.fit(fit,contr)
-		fit <- eBayes(fit)
-		des2 <- topTable(fit, adjust.method="BH",p.value=pvalue,number=80000) #FIXME filtering by foldchange is missing
-		if(nrow(des2) == 0) {
-			print("MESSAGE: No significant result in Metabric analysis")
-			quit(save="no")
-		}
-		# Removing log for stupid users
-		des2$logFC <- exp(des2$logFC)
-		colnames(des2)[1] <- "foldchange"
-		# Create a hybrid table with duplicated fold change
-		commongenes <- intersect(rownames(des), rownames(des2))
-		if(length(commongenes) == 0){
-			print("MESSAGE: No common results between Metabric and TCGA")
-			quit(save="no")
-		}
-		des <- des[commongenes,c(1,3,4)]
-		des2 <- des2[commongenes,c(1,4,5)]
-		des <- cbind(des,des2)
-		colnames(des) <- c('TCGA foldchange', 'TCGA Pvalue', 'TCGA FDR', 'Metabric foldchange', 'Metabric Pvalue', 'Metabric FDR')
-	}
-	proc.time()
-	print('MESSAGE: Processing Metabric')
-}
 
 # Filtering results
 if(genetable != "all"){

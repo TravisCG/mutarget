@@ -4,7 +4,7 @@
     $filename = substr($suffix, 27);
   }
   else {
-    $filename = "/tmp/MUT" . $suffix;
+    $filename = $suffix;
   }
   header('Content-Type: text/plain');
   $f = fopen($filename . ".tsv", "r");

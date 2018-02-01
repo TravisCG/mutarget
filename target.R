@@ -34,7 +34,7 @@ proc.time()
 print("MESSAGE: Start")
 
 # Expression matrix
-count <- as.matrix(read.table(paste(cancerid, "tsv", sep = "."), check.names = F, sep = "\t"))
+count <- getExpMatrix(con, cancerid, "1") # Use only TCGA
 proc.time()
 print("MESSAGE: Exp matrix")
 
@@ -72,7 +72,7 @@ shortnames <- sub("-...-...-....-..$","",rownames(coldata))
 maxcount   <- length(unique(shortnames)) # maximum number of mutation should be less than all the samples (prevent one group syndrome)
 mincount   <- trunc(maxcount * mutprev / 100) # minimum number of mutation calculated from mutation prevalence
 
-query <- paste("select name,genename from mutation inner join (genetable,individual) on (genetable_geneid = geneid and patientid = individual_patientid) where individual_cancerid = ",cancerid," and muteffect_effectid = ",effect,";", sep = "")
+query <- paste("select name,genename from mutation inner join (genetable,individual) on (genetable_geneid = geneid and patientid = individual_patientid) where individual_cancer_cancerid = ",cancerid," and muteffect_effectid = ",effect,";", sep = "")
 
 mutmatrix <- fetchDB(con, query)
 mutmatrix <- as.data.frame.matrix(table(mutmatrix$genename, mutmatrix$name))
@@ -102,7 +102,7 @@ write.table(format(result_table, digits = 2), paste(tmpprefix, "tsv",sep="."), q
 mutmatrix2 <- data.frame(lapply(mutmatrix, factor, levels = c(0,1), labels=c("WT","Mut")), check.names = F)
 rownames(mutmatrix2) <- rownames(mutmatrix)
 ctree <- cbind(winp[,1,drop=F], t(mutmatrix2[,shortnames]))
-resulttree <- ctree(exp ~ ., data = ctree, , control = ctree_control(maxdepth=3, minprob=mutprev/100,testtype=c("Univariate")))
+resulttree <- ctree(exp ~ ., data = ctree, , control = ctree_control(maxdepth=3, minprob=0.05,testtype=c("Univariate")))
 proc.time()
 print("MESSAGE: Decision tree created")
 
