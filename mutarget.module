@@ -86,7 +86,7 @@ function create_table($tmpname, $maxrow) {
       $maxrow = $maxrow - 1;
     }
     $html = $html . "</tbody></table>";
-    $html = $html . '<a href="sites/all/modules/mutarget/download.php?name='.$tmpname.'">Download the whole table</a><br />';
+    $html = $html . '<a href="sites/all/modules/mutarget/download.php?name='.$tmpname.'">Download the entire table</a><br />';
     fclose($table);
   }
   else {
@@ -123,8 +123,8 @@ function mutarget_inputform($formchoose) {
 function change_to_mutargetdb() {
   $mutarget_db = array(
     'database' => 'mutarget',
-    'username' => 'XXXX',
-    'password' => 'XXXX',
+    'username' => 'root',
+    'password' => 'mta56TTK',
     'host' => 'localhost',
     'driver' => 'mysql',
   );
@@ -152,7 +152,7 @@ function genotype_form($form, $form_state) {
     '#options' => array(
       '1' => t('TCGA'),
       '2' => t('METABRIC'),
-      '3' => t('TARGET'),
+      '3' => t('NCI\'s OCG'),
     ),
     '#default_value' => '1',
     '#ajax' => array(
@@ -257,16 +257,6 @@ function genotype_form($form, $form_state) {
     ),
   );
 
-  $form['advanced']['diffexp'] = array(
-    '#type' => 'select',
-    '#title' => t('Differential expression calculation (TCGA only)'),
-    '#options' => array(
-      'edgeR' => t('edgeR'),
-      'DESeq2' => t('DESeq2'),
-    ),
-    '#default_value' => 'edgeR',
-  );
-
   $form['advanced']['filter'] = array(
     '#type' => 'fieldset',
     '#title' => t('Filtering options'),
@@ -288,7 +278,24 @@ function genotype_form($form, $form_state) {
     '#autocomplete_path' => 'MuTarget/autocomplete',
   );
 
-  $form['advanced']['pvalue'] = array(
+  $form['advanced']['statistics'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Statistics'),
+    'collapsible' => FALSE,
+  );
+
+  $form['advanced']['statistics']['diffexp'] = array(
+    '#type' => 'select',
+    '#title' => t('Differential expression calculation (TCGA only)'),
+    '#options' => array(
+      'edgeR' => t('edgeR'),
+      'DESeq2' => t('DESeq2'),
+    ),
+    '#default_value' => 'edgeR',
+  );
+
+
+  $form['advanced']['statistics']['pvalue'] = array(
     '#type' => 'textfield',
     '#title' => t('p-value cutoff'),
     '#default_value' => '0.05',
@@ -296,7 +303,7 @@ function genotype_form($form, $form_state) {
     '#maxlength' => 4,
   );
 
-  $form['advanced']['foldchange'] = array(
+  $form['advanced']['statistics']['foldchange'] = array(
     '#type' => 'textfield',
     '#title' => t('Fold change cutoff'),
     '#default_value' => '1.44',
@@ -304,7 +311,13 @@ function genotype_form($form, $form_state) {
     '#maxlength' => 4,
   );
 
-  $form['advanced']['table'] = array(
+  $form['advanced']['output'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Output options'),
+    'collapsible' => FALSE,
+  );
+
+  $form['advanced']['output']['table'] = array(
     '#type' => 'radios',
     '#title' => t('Generate table for'),
     '#options' => array(
@@ -315,7 +328,7 @@ function genotype_form($form, $form_state) {
     '#default_value' => 'all',
   );
 
-  $form['advanced']['numtopgenes'] = array(
+  $form['advanced']['output']['numtopgenes'] = array(
     '#type' => 'select',
     '#title' => t('Show plot for'),
     '#options' => array(
@@ -325,6 +338,11 @@ function genotype_form($form, $form_state) {
       'all' => t('All genes'),
     ),
     '#default_value' => '5',
+  );
+
+  $form['advanced']['output']['outliers'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Show outliers'),
   );
 
   $form['qtype'] = array(
@@ -366,16 +384,17 @@ function run_genotype_analysis($form, $form_state){
   $diffexp     = $form_state['values']['diffexp'];
   $filtgene    = $form_state['values']['filtergene'];
   $filttype    = $form_state['values']['filtertype'];
+  $outliers    = $form_state['values']['outliers'];
   $progressvar = "MuTarget_progress_" . $form_state['time'];
   $response    = array();
   $x           = 1;
   chdir('sites/all/modules/mutarget/');
   // Use cache data to speed up the process
-  if ($muttype == "12" && $cancer == 3 && $pvalue == 0.05 && $foldchange == 1.44 && $outtable == "all" && $numtopgenes == 5 && $filtgene == "" && $filttype == "" && $diffexp == 'edgeR' && $dbsrc == 1){
+  if ($muttype == "12" && $cancer == 3 && $pvalue == 0.05 && $foldchange == 1.44 && $outtable == "all" && $numtopgenes == 5 && $filtgene == "" && $filttype == "" && $diffexp == 'edgeR' && $dbsrc == 1 && $outliers == 1){
     $tmp_name = "sites/all/modules/mutarget/cache/cache.$genes.TCGA";
   }
   else {
-    $cmd = "Rscript genotype.R $tmp_name $genes $muttype $cancer $pvalue $foldchange $outtable $numtopgenes $dbsrc $diffexp $filtgene $filttype";
+    $cmd = "Rscript genotype.R $tmp_name $genes $muttype $cancer $pvalue $foldchange $outtable $numtopgenes $dbsrc $diffexp $outliers $filtgene $filttype";
     $proc = popen($cmd, "r");
     while (!feof($proc)){
       $data = fgets($proc, 1025);
@@ -394,6 +413,7 @@ function run_genotype_analysis($form, $form_state){
   $html = add_header($genes, $_SESSION['mutsamplesnum'], $_SESSION['totalsamplenum']);
   $html = $html . create_table($tmp_name, $numtopgenes);
   $html = $html . add_pictures($tmp_name);
+  //$html = $html . "<script>alert(\"Fok, like gaxtass\");</script>";
   $html = $html . l(t('Back'), 'MuTarget/Genotype');
   $response[] = ajax_command_html('#status_div', $html);
   return array(
