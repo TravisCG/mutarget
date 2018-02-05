@@ -123,8 +123,8 @@ function mutarget_inputform($formchoose) {
 function change_to_mutargetdb() {
   $mutarget_db = array(
     'database' => 'mutarget',
-    'username' => 'root',
-    'password' => 'mta56TTK',
+    'username' => 'XXXX',
+    'password' => 'XXXX',
     'host' => 'localhost',
     'driver' => 'mysql',
   );
