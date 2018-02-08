@@ -16,7 +16,7 @@ genetable  <- argv[7]
 plotnum    <- argv[8]
 dbsrc      <- argv[9]
 diffexp    <- argv[10]
-outliers   <- argv[11]
+outliers   <- as.numeric(argv[11]) == 1
 filtergene <- argv[12]
 filterout  <- argv[13]
 
@@ -133,15 +133,11 @@ if(plotnum == "all" | as.numeric(plotnum) > nrow(des)){
 } else {
 	plotnum <- as.numeric(plotnum)
 }
-outl <- FALSE
-if(outliers == 1){
-	outl = TRUE
-}
 
 for(index in 1:plotnum){
    gene <- rownames(des)[index]
    png(paste(tmpprefix,gene,"png",sep="."))
-   boxplot(normexp[gene, rownames(coldata[coldata$gene == "Mut",,drop=F])], normexp[gene,rownames(coldata[coldata$gene == "WT",,drop=F])], main = paste(gene, "expression", sep=" "), names = c("Mutant", "WT"), outline = outl)
+   boxplot(normexp[gene, rownames(coldata[coldata$gene == "Mut",,drop=F])], normexp[gene,rownames(coldata[coldata$gene == "WT",,drop=F])], main = paste(gene, "expression", sep=" "), names = c("Mutant", "WT"), outline = outliers)
    dev.off()
 }
 

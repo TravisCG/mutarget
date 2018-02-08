@@ -134,6 +134,19 @@ function change_to_mutargetdb() {
   db_set_active('mutarget');
 }
 
+function dbsrcfromcancer($cancer){
+  // Let's start hacking
+  if ($cancer == "3b"){
+    $dbsrc = 2;
+  } elseif ($cancer == "13" || $cancer == "14" || $cancer == "15") {
+    $dbsrc = 3;
+  } else {
+    $dbsrc = 1;
+  }
+
+  return $dbsrc;
+}
+
 /**
  * Genotype form
  */
@@ -144,23 +157,6 @@ function genotype_form($form, $form_state) {
 
   $form['status_begin'] = array(
     '#markup' => '<div id="status_div">',
-  );
-
-  $form['datasourcechooser'] = array(
-    '#type' => 'radios',
-    '#title' => t('Choose data source'),
-    '#options' => array(
-      '1' => t('TCGA'),
-      '2' => t('METABRIC'),
-      '3' => t('NCI\'s OCG'),
-    ),
-    '#default_value' => '1',
-    '#ajax' => array(
-      'callback' => 'get_mutated_samples',
-      'event' => 'change',
-      'wrapper' => 'samplesize',
-      'method' => 'replace',
-    ),
   );
 
   $form['genes'] = array(
@@ -180,21 +176,22 @@ function genotype_form($form, $form_state) {
     '#type' => 'select',
     '#title' => t('Tumour type'),
     '#options' => array(
-      '1' => t('Ovarian Serous Cystadenocarcinoma'),
-      '2' => t('Head and Neck Squamous Cell Carcinoma'),
-      '3' => t('Breast Invasive Carcinoma'),
-      '4' => t('Prostate Adenocarcinoma'),
-      '5' => t('Rectum Adenocarcinoma'),
-      '6' => t('Skin Cutaneous Melanoma'),
-      '7' => t('Kidney Renal Clear Cell Carcinoma'),
-      '8' => t('Lung Adenocarcinoma'),
-      '9' => t('Kidney Renal Papillary Cell Carcinoma'),
-      '10' => t('Lung Squamous Cell Carcinoma'),
-      '11' => t('Kidney Chromophobe'),
-      '12' => t('Colon Adenocarcinoma'),
-      '13' => t('Acute Lymphoblastic Leukemia'),
-      '14' => t('Acute Myeloid Leukemia'),
-      '15' => t('Neuroblastoma'),
+      '13' => t('Acute Lymphoblastic Leukemia - TARGET'),
+      '14' => t('Acute Myeloid Leukemia - TARGET'),
+      '3b' => t('Breast Carcinoma - METABRIC'),
+      '3'  => t('Breast Invasive Carcinoma - TCGA'),
+      '12' => t('Colon Adenocarcinoma - TCGA'),
+      '2'  => t('Head and Neck Squamous Cell Carcinoma - TCGA'),
+      '7'  => t('Kidney Renal Clear Cell Carcinoma - TCGA'),
+      '11' => t('Kidney Chromophobe - TCGA'),
+      '9'  => t('Kidney Renal Papillary Cell Carcinoma - TCGA'),
+      '8'  => t('Lung Adenocarcinoma - TCGA'),
+      '10' => t('Lung Squamous Cell Carcinoma - TCGA'),
+      '15' => t('Neuroblastoma - TARGET'),
+      '1'  => t('Ovarian Serous Cystadenocarcinoma - TCGA'),
+      '4'  => t('Prostate Adenocarcinoma - TCGA'),
+      '5'  => t('Rectum Adenocarcinoma - TCGA'),
+      '6'  => t('Skin Cutaneous Melanoma - TCGA'),
     ),
     '#default_value' => '3',
     '#ajax' => array(
@@ -206,8 +203,19 @@ function genotype_form($form, $form_state) {
   );
   } else {
     $form['tumtype'] = array(
-      '#type' => 'hidden',
-      '#value' => '3',
+      '#type' => 'select',
+      '#title' => t('Tumor type'),
+      '#options' => array(
+        '3b' => t('Breast Carcinoma - METABRIC'),
+        '3'  => t('Breast Invasive Carcinoma - TCGA'),
+      ),
+      '#default_value' => '3',
+      '#ajax' => array(
+      'callback' => 'get_mutated_samples',
+      'event' => 'change',
+      'wrapper' => 'samplesize',
+      'method' => 'replace',
+    ),
     );
   }
 
@@ -222,7 +230,14 @@ function genotype_form($form, $form_state) {
     '#collapsed' => TRUE,
   );
 
-  $form['advanced']['muttype'] = array(
+  $form['advanced']['mutations'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Mutation settings'),
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+  );
+
+  $form['advanced']['mutations']['muttype'] = array(
     '#type' => 'checkboxes',
     '#title' => t('Mutation type'),
     '#options' => array(
@@ -260,7 +275,8 @@ function genotype_form($form, $form_state) {
   $form['advanced']['filter'] = array(
     '#type' => 'fieldset',
     '#title' => t('Filtering options'),
-    'collapsible' => FALSE,
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
   );
 
   $form['advanced']['filter']['filtertype'] = array(
@@ -281,7 +297,8 @@ function genotype_form($form, $form_state) {
   $form['advanced']['statistics'] = array(
     '#type' => 'fieldset',
     '#title' => t('Statistics'),
-    'collapsible' => FALSE,
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
   );
 
   $form['advanced']['statistics']['diffexp'] = array(
@@ -314,7 +331,8 @@ function genotype_form($form, $form_state) {
   $form['advanced']['output'] = array(
     '#type' => 'fieldset',
     '#title' => t('Output options'),
-    'collapsible' => FALSE,
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
   );
 
   $form['advanced']['output']['table'] = array(
@@ -380,14 +398,15 @@ function run_genotype_analysis($form, $form_state){
   $foldchange  = $form_state['values']['foldchange'];
   $outtable    = $form_state['values']['table'];
   $numtopgenes = $form_state['values']['numtopgenes'];
-  $dbsrc       = $form_state['values']['datasourcechooser'];
   $diffexp     = $form_state['values']['diffexp'];
+  $outliers    = $form_state['values']['outliers'];
   $filtgene    = $form_state['values']['filtergene'];
   $filttype    = $form_state['values']['filtertype'];
-  $outliers    = $form_state['values']['outliers'];
-  $progressvar = "MuTarget_progress_" . $form_state['time'];
   $response    = array();
   $x           = 1;
+
+  $dbsrc = dbsrcfromcancer($cancer);
+  $cancer = (int)$cancer;
   chdir('sites/all/modules/mutarget/');
   // Use cache data to speed up the process
   if ($muttype == "12" && $cancer == 3 && $pvalue == 0.05 && $foldchange == 1.44 && $outtable == "all" && $numtopgenes == 5 && $filtgene == "" && $filttype == "" && $diffexp == 'edgeR' && $dbsrc == 1 && $outliers == 1){
@@ -413,7 +432,6 @@ function run_genotype_analysis($form, $form_state){
   $html = add_header($genes, $_SESSION['mutsamplesnum'], $_SESSION['totalsamplenum']);
   $html = $html . create_table($tmp_name, $numtopgenes);
   $html = $html . add_pictures($tmp_name);
-  //$html = $html . "<script>alert(\"Fok, like gaxtass\");</script>";
   $html = $html . l(t('Back'), 'MuTarget/Genotype');
   $response[] = ajax_command_html('#status_div', $html);
   return array(
@@ -426,11 +444,13 @@ function run_genotype_analysis($form, $form_state){
  * Ajax function to update the mutation number in div#mutnumber
  */
 function get_mutated_samples($form, $form_state){
-  $muttype = $form['advanced']['muttype']['#value'];
+  $muttype = $form['advanced']['mutations']['muttype']['#value'];
   $muttype = "(" . implode(",", $muttype) . ")";
   $tumtype = $form['tumtype']['#value'];
   $gene    = $form['genes']['#value'];
-  $dbsrc   = $form['datasourcechooser']['#value'];
+  $dbsrc   = dbsrcfromcancer($tumtype);
+  $tumtype = (int)$tumtype;
+  $all = $gene;
 
   change_to_mutargetdb();
   $all = db_query("select count(distinct(name)) as counted from individual where cancer_cancerid =" . $tumtype . " and datasource_datasourceid = " . $dbsrc . ";")->fetchField();
@@ -450,7 +470,7 @@ function gene_autocomplete($string) {
   $matches = array();
 
   change_to_mutargetdb();
-  $result = db_query("select genename from genetable where genename like '%" . $string . "%' limit 10;"); //FIXME Gene name could be depend on the input dataset
+  $result = db_query("select genename from genetable where genename like '" . $string . "%' order by genename limit 10");
 
   foreach ($result as $rec) {
     $matches[ $rec->genename ] = $rec->genename;
@@ -503,28 +523,34 @@ function target_form($form, $form_state){
     '#type' => 'select',
     '#title' => t('Tumour type'),
     '#options' => array(
-      '1' => t('Ovarian Serous Cystadenocarcinoma'),
-      '2' => t('Head and Neck Squamous Cell Carcinoma'),
-      '3' => t('Breast Invasive Carcinoma'),
-      '4' => t('Prostate Adenocarcinoma'),
-      '5' => t('Rectum Adenocarcinoma'),
-      '6' => t('Skin Cutaneous Melanoma'),
-      '7' => t('Kidney Renal Clear Cell Carcinoma'),
-      '8' => t('Lung Adenocarcinoma'),
-      '9' => t('Kidney Renal Papillary Cell Carcinoma'),
-      '10' => t('Lung Squamous Cell Carcinoma'),
-      '11' => t('Kidney Chromophobe'),
-      '12' => t('Colon Adenocarcinoma'),
-//      '13' => t('Acute Lymphoblastic Leukemia'),
-//      '14' => t('Acute Myeloid Leukemia'),
-//      '15' => t('Neuroblastoma'),
+      '13' => t('Acute Lymphoblastic Leukemia - TARGET'),
+      '14' => t('Acute Myeloid Leukemia - TARGET'),
+      '3b' => t('Breast Carcinoma - METABRIC'),
+      '3'  => t('Breast Invasive Carcinoma - TCGA'),
+      '12' => t('Colon Adenocarcinoma - TCGA'),
+      '2'  => t('Head and Neck Squamous Cell Carcinoma - TCGA'),
+      '7'  => t('Kidney Renal Clear Cell Carcinoma - TCGA'),
+      '11' => t('Kidney Chromophobe - TCGA'),
+      '9'  => t('Kidney Renal Papillary Cell Carcinoma - TCGA'),
+      '8'  => t('Lung Adenocarcinoma - TCGA'),
+      '10' => t('Lung Squamous Cell Carcinoma - TCGA'),
+      '15' => t('Neuroblastoma - TARGET'),
+      '1'  => t('Ovarian Serous Cystadenocarcinoma - TCGA'),
+      '4'  => t('Prostate Adenocarcinoma - TCGA'),
+      '5'  => t('Rectum Adenocarcinoma - TCGA'),
+      '6'  => t('Skin Cutaneous Melanoma - TCGA'),
     ),
     '#default_value' => '3',
   );
   } else {
     $form['tumtype'] = array(
-      '#type' => 'hidden',
-      '#value' => '3',
+      '#type' => 'select',
+      '#title' => t('Tumour type'),
+      '#options' => array(
+        '3b' => t('Breast Carcinoma - METABRIC'),
+	'3'  => t('Breast Invasive Carcinoma - TCGA'),
+      ),
+      '#default_value' => '3',
     );
   }
 
@@ -535,13 +561,7 @@ function target_form($form, $form_state){
     '#collapsed' => TRUE,
   );
 
-  $form['advanced']['filter'] = array(
-    '#type' => 'fieldset',
-    '#title' => t('Filtering options'),
-    'collapsible' => FALSE,
-  );
-
-  $form['advanced']['filter']['filtertype'] = array(
+  $form['advanced']['filtertype'] = array(
     '#type' => 'radios',
     '#title' => t('Use mutation filter'),
     '#options' => array(
@@ -550,7 +570,7 @@ function target_form($form, $form_state){
     ),
   );
 
-  $form['advanced']['filter']['filtergene'] = array(
+  $form['advanced']['filtergene'] = array(
     '#type' => 'textfield',
     '#title' => t('patients with mutations in'),
     '#autocomplete_path' => 'MuTarget/autocomplete',
@@ -574,7 +594,7 @@ function target_form($form, $form_state){
 
   $form['advanced']['prevalence'] = array(
     '#type' => 'textfield',
-    '#title' => t('Mutation prevalence at least'),
+    '#title' => t('Mutation prevalence at least %'),
     '#default_value' => '1',
     '#size' => 4,
     '#maxlength' => 4,
