@@ -56,11 +56,12 @@ if(!is.na(filtergene)){
 genes   <- paste("genename in ('",gsub(",","','",genes),"')",sep="")
 muttype <- paste("muteffect_effectid in (",muttype,")",sep="")
 query   <- paste("select distinct(name) as samples from individual inner join (mutation,genetable) on (individual_patientid = patientid and genetable_geneid = geneid) where cancer_cancerid = ",cancerid," and ",genes," and ",muttype,";",sep="")
+print(query)
 raw     <- fetchDB(con, query)
 index   <- grep(paste(raw$samples, collapse="|"), rownames(coldata))
 coldata$gene[index] <- "Mut"
 if(length(coldata[coldata$gene == "Mut",]) == 0){
-	print("MESSAGE: Not enough samples with alteration to split into cohorts")
+	print("WARNING: Not enough samples with alteration to split into cohorts")
 	quit(save="no")
 }
 proc.time()
@@ -75,7 +76,11 @@ if(dbsrc != 2){
 		edge <- edge[keep, , keep.lib.sizes=FALSE]
 		edge <- calcNormFactors(edge)
 		edge <- estimateDisp(edge)
+		proc.time()
+		print("MESSAGE: Testing genes")
 		des  <- exactTest(edge)
+		proc.time()
+		print("MESSAGE: Selecting significant results")
 		des  <- as.data.frame(topTags(des, n = 32000, p.value = pvalue))
 		des  <- des[abs(des$logFC) > foldchange,]
 		# I need to remove log, because "Our users cannot understand it..."
@@ -86,8 +91,12 @@ if(dbsrc != 2){
 		normexp <- cpm(edge)
 	} else if(diffexp == "DESeq2") {
 		des <- DESeqDataSetFromMatrix(count, colData = coldata, design =~gene)
+		proc.time()
+		print("MESSAGE: Testing genes")
 		des <- DESeq(des)
 		normexp <- assay(vst(des)) # Later we will overwrite variable des
+		proc.time()
+		print("MESSAGE: Select significant results")
 		des <- results(des, contrast = c("gene", "Mut", "WT"))
 		des <- des[!is.na(des$padj) & des$padj < pvalue & abs(des$log2FoldChange) > foldchange,]
 		# Removing logarithm
@@ -99,10 +108,14 @@ if(dbsrc != 2){
 	# microarray
 	mm <- model.matrix( ~0 + coldata$gene)
 	colnames(mm) <- c("Mut", "WT")
+	proc.time()
+	print("MESSAGE: Testing genes")
 	fit <- lmFit(count, mm)
 	contr <- makeContrasts(Mut-WT, levels = mm)
 	fit <- contrasts.fit(fit, contr)
 	fit <- eBayes(fit)
+	proc.time()
+	print("MESSAGE: Select significant results")
 	des <- topTable(fit, adjust.method="BH",p.value=pvalue,number=80000) #FIXME filtering by foldchange is missing
 	des$logFC <- exp(des$logFC)
 	colnames(des)[1] <- "foldchange"

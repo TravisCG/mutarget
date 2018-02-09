@@ -1,7 +1,7 @@
 <?php
   $suffix = $_GET["pic"];
-  if (substr($suffix, 0, 5) == "sites"){
-    $filename = substr($suffix, 27);
+  if (substr($suffix, 0, 5) == "cache"){
+    $filename = $suffix;
   }
   else {
     $filename = "/tmp/MUT" . $suffix;

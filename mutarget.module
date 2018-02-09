@@ -86,11 +86,11 @@ function create_table($tmpname, $maxrow) {
       $maxrow = $maxrow - 1;
     }
     $html = $html . "</tbody></table>";
-    $html = $html . '<a href="sites/all/modules/mutarget/download.php?name='.$tmpname.'">Download the entire table</a><br />';
+    $html = $html . '<a href="sites/all/modules/mutarget/download.php?name='.$tmpname.'" target="_blank">Download the entire table</a><br />';
     fclose($table);
   }
   else {
-    $html = "No significant results.";
+    $html = "No significant results.<br />";
   }
 
   return $html;
@@ -145,6 +145,35 @@ function dbsrcfromcancer($cancer){
   }
 
   return $dbsrc;
+}
+
+function runcmd($cmd, $progressvar, $maxstep) {
+  $msg = '';
+  $x = 1;
+
+  $proc = popen($cmd, "r");
+  while (!feof($proc)){
+    $data = fgets($proc, 1025);
+    $text = substr($data, 13, -2); //R put some unnecessary characters
+
+    if (stripos($data, 'MESSAGE:') !== FALSE) {
+      $myvar = array('msg'     => $text,
+                     'percent' => (int)($x / $maxstep * 100),);
+
+      variable_set($progressvar, $myvar);
+
+      $x = $x + 1; // Count steps
+    }
+
+    if (stripos($data, 'WARNING:') !== FALSE){
+      $msg = $msg . $text;
+    }
+  }
+
+  pclose($proc);
+  variable_del($progressvar);
+
+  return($msg);
 }
 
 /**
@@ -403,33 +432,24 @@ function run_genotype_analysis($form, $form_state){
   $filtgene    = $form_state['values']['filtergene'];
   $filttype    = $form_state['values']['filtertype'];
   $response    = array();
-  $x           = 1;
 
   $dbsrc = dbsrcfromcancer($cancer);
   $cancer = (int)$cancer;
   chdir('sites/all/modules/mutarget/');
   // Use cache data to speed up the process
   if ($muttype == "12" && $cancer == 3 && $pvalue == 0.05 && $foldchange == 1.44 && $outtable == "all" && $numtopgenes == 5 && $filtgene == "" && $filttype == "" && $diffexp == 'edgeR' && $dbsrc == 1 && $outliers == 1){
-    $tmp_name = "sites/all/modules/mutarget/cache/cache.$genes.TCGA";
+    $tmp_name = "cache/cache.$genes.TCGA";
   }
   else {
     $cmd = "Rscript genotype.R $tmp_name $genes $muttype $cancer $pvalue $foldchange $outtable $numtopgenes $dbsrc $diffexp $outliers $filtgene $filttype";
-    $proc = popen($cmd, "r");
-    while (!feof($proc)){
-      $data = fgets($proc, 1025);
-      if (stripos($data, 'MESSAGE:') !== FALSE) {
-        $myvar = array('msg' => substr($data, 13, -2),
-                       'percent' => (int)($x / 6 * 100),
-	       );
-        variable_set($progressvar, $myvar);
-	$x = $x + 1;
-      }
-    }
-    pclose($proc);
-    variable_del($progressvar);
+    $msg = runcmd($cmd, "MuTarget_progress_" . $form_state['time'], 8);
   }
 
   $html = add_header($genes, $_SESSION['mutsamplesnum'], $_SESSION['totalsamplenum']);
+  $html = $html . $cmd . '<br />'; //FIXME just for debug
+  if ($msg != '') {
+    $html = $html . $msg;
+  }
   $html = $html . create_table($tmp_name, $numtopgenes);
   $html = $html . add_pictures($tmp_name);
   $html = $html . l(t('Back'), 'MuTarget/Genotype');
@@ -633,25 +653,15 @@ function run_target_analysis($form, $form_state){
   $filtgene = $form_state['values']['filtergene'];
   $filttype = $form_state['values']['filtertype'];
   $response = array();
-  $x = 1;
-  $progressvar = "MuTarget_progress_" . $form_state['time'];;
 
+  $dbsrc = dbsrcfromcancer($cancer);
+  $cancer = (int)$cancer; //Remove B and other characters from the end of the cancerid
   chdir('sites/all/modules/mutarget/');
-  $cmd = "Rscript target.R $tmp_name $cancer $muttype $gene $pvalue $foldchange $mutprev $filtgene $filttype";
-
-  $proc = popen($cmd, "r");
-  while (!feof($proc)){
-    $data = fgets($proc, 1025);
-    $myvar = array('msg' => substr($data, 13, -2),
-                   'percent' => (int)($x / 9 * 100),
-             );
-    variable_set($progressvar, $myvar);
-    $x = $x + 1;
-  }
-  variable_del($progressvar);
-  pclose($proc);
+  $cmd = "Rscript target.R $tmp_name $cancer $muttype $gene $pvalue $foldchange $mutprev $dbsrc $filtgene $filttype";
+  runcmd($cmd, "MuTarget_progress_" . $form_state['time'], 9);
 
   $html = add_header($gene, "", "");
+  $html = $html . $cmd;
   $html = $html . create_table($tmp_name, 5);
   $html = $html . add_pictures($tmp_name);
   $html = $html . l(t('Back'), 'MuTarget/Target');

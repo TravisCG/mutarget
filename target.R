@@ -28,13 +28,14 @@ testgene     <- argv[4]
 qvalcutoff   <- as.numeric(argv[5])
 foldchcutoff <- as.numeric(argv[6])
 mutprev      <- as.numeric(argv[7])
-filtergene   <- argv[8]
-filterout    <- argv[9]
+dbsrc        <- as.numeric(argv[8])
+filtergene   <- argv[9]
+filterout    <- argv[10]
 proc.time()
 print("MESSAGE: Start")
 
 # Expression matrix
-count <- getExpMatrix(con, cancerid, "1") # Use only TCGA
+count <- getExpMatrix(con, cancerid, dbsrc)
 proc.time()
 print("MESSAGE: Exp matrix")
 
@@ -72,11 +73,12 @@ shortnames <- sub("-...-...-....-..$","",rownames(coldata))
 maxcount   <- length(unique(shortnames)) # maximum number of mutation should be less than all the samples (prevent one group syndrome)
 mincount   <- trunc(maxcount * mutprev / 100) # minimum number of mutation calculated from mutation prevalence
 
-query <- paste("select name,genename from mutation inner join (genetable,individual) on (genetable_geneid = geneid and patientid = individual_patientid) where individual_cancer_cancerid = ",cancerid," and muteffect_effectid = ",effect,";", sep = "")
+#query <- paste("select name,genename from mutation inner join (genetable,individual) on (genetable_geneid = geneid and patientid = individual_patientid) where individual_cancer_cancerid = ",cancerid," and muteffect_effectid = ",effect,";", sep = "")
 
-mutmatrix <- fetchDB(con, query)
-mutmatrix <- as.data.frame.matrix(table(mutmatrix$genename, mutmatrix$name))
-mutmatrix[mutmatrix > 0] <- 1 # We need a binary matrix
+#mutmatrix <- fetchDB(con, query)
+#mutmatrix <- as.data.frame.matrix(table(mutmatrix$genename, mutmatrix$name))
+#mutmatrix[mutmatrix > 0] <- 1 # We need a binary matrix
+mutmatrix <- read.table(paste("mut",cancerid,dbsrc,"tsv",sep="."), check.names = F, sep="\t")
 mutmatrix <- mutmatrix[rowSums(mutmatrix) > mincount & rowSums(mutmatrix) < maxcount,]
 result_table <- data.frame(foldchange = rep(0, nrow(mutmatrix)), pvalue = rep(1,nrow(mutmatrix)), adj.pval = rep(1,nrow(mutmatrix)))
 rownames(result_table) <- rownames(mutmatrix)
@@ -97,6 +99,8 @@ result_table$adj.pval <- p.adjust(result_table$pvalue, "BH")
 #Filtering and producing table
 result_table <- result_table[result_table$adj.pval < qvalcutoff & result_table$foldchange > foldchcutoff,]
 write.table(format(result_table, digits = 2), paste(tmpprefix, "tsv",sep="."), quote=F, sep ="\t")
+proc.time()
+print("MESSAGE: Create decision tree")
 
 # Decision tree
 mutmatrix2 <- data.frame(lapply(mutmatrix, factor, levels = c(0,1), labels=c("WT","Mut")), check.names = F)
