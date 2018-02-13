@@ -21,12 +21,12 @@ filtergene <- argv[12]
 filterout  <- argv[13]
 
 proc.time()
-print("MESSAGE: Start")
+cat("MESSAGE: Initialisation\n")
 
 # Expression matrix
 count <- getExpMatrix(con, cancerid, dbsrc)
 proc.time()
-print("MESSAGE: Expression matrix")
+cat("MESSAGE: Expression matrix\n")
 
 # Column data
 coldata <- data.frame(gene = factor(rep("WT", ncol(count)), levels = c("WT","Mut")))
@@ -56,16 +56,15 @@ if(!is.na(filtergene)){
 genes   <- paste("genename in ('",gsub(",","','",genes),"')",sep="")
 muttype <- paste("muteffect_effectid in (",muttype,")",sep="")
 query   <- paste("select distinct(name) as samples from individual inner join (mutation,genetable) on (individual_patientid = patientid and genetable_geneid = geneid) where cancer_cancerid = ",cancerid," and ",genes," and ",muttype,";",sep="")
-print(query)
 raw     <- fetchDB(con, query)
 index   <- grep(paste(raw$samples, collapse="|"), rownames(coldata))
 coldata$gene[index] <- "Mut"
 if(length(coldata[coldata$gene == "Mut",]) == 0){
-	print("WARNING: Not enough samples with alteration to split into cohorts")
+	cat("WARNING: Not enough samples with alteration to split into cohorts\n")
 	quit(save="no")
 }
 proc.time()
-print("MESSAGE: Get mutant samples")
+cat("MESSAGE: Geting mutant samples\n")
 
 # Differential expression using edgeR
 if(dbsrc != 2){
@@ -77,31 +76,31 @@ if(dbsrc != 2){
 		edge <- calcNormFactors(edge)
 		edge <- estimateDisp(edge)
 		proc.time()
-		print("MESSAGE: Testing genes")
+		cat("MESSAGE: Testing genes\n")
 		des  <- exactTest(edge)
 		proc.time()
-		print("MESSAGE: Selecting significant results")
+		cat("MESSAGE: Selecting significant results\n")
 		des  <- as.data.frame(topTags(des, n = 32000, p.value = pvalue))
 		des  <- des[abs(des$logFC) > foldchange,]
 		# I need to remove log, because "Our users cannot understand it..."
 		# No further comment
 		des$logFC <- exp(des$logFC)
-		colnames(des)[1] <- "foldchange"
+		colnames(des)[1] <- "Fold change"
 		des  <- des[,c(1,3,4)]
 		normexp <- cpm(edge)
 	} else if(diffexp == "DESeq2") {
 		des <- DESeqDataSetFromMatrix(count, colData = coldata, design =~gene)
 		proc.time()
-		print("MESSAGE: Testing genes")
+		cat("MESSAGE: Testing genes\n")
 		des <- DESeq(des)
 		normexp <- assay(vst(des)) # Later we will overwrite variable des
 		proc.time()
-		print("MESSAGE: Select significant results")
+		cat("MESSAGE: Selecting significant results\n")
 		des <- results(des, contrast = c("gene", "Mut", "WT"))
 		des <- des[!is.na(des$padj) & des$padj < pvalue & abs(des$log2FoldChange) > foldchange,]
 		# Removing logarithm
 		des$log2FoldChange <- exp(des$log2FoldChange)
-		colnames(des)[2] <- "foldchange"
+		colnames(des)[2] <- "Fold change"
 		des <- as.matrix(des)[,c(2,5,6)]
 	}
 } else {
@@ -109,21 +108,21 @@ if(dbsrc != 2){
 	mm <- model.matrix( ~0 + coldata$gene)
 	colnames(mm) <- c("Mut", "WT")
 	proc.time()
-	print("MESSAGE: Testing genes")
+	cat("MESSAGE: Testing genes\n")
 	fit <- lmFit(count, mm)
 	contr <- makeContrasts(Mut-WT, levels = mm)
 	fit <- contrasts.fit(fit, contr)
 	fit <- eBayes(fit)
 	proc.time()
-	print("MESSAGE: Select significant results")
+	cat("MESSAGE: Selecting significant results\n")
 	des <- topTable(fit, adjust.method="BH",p.value=pvalue,number=80000) #FIXME filtering by foldchange is missing
 	des$logFC <- exp(des$logFC)
-	colnames(des)[1] <- "foldchange"
+	colnames(des)[1] <- "Fold change"
 	normexp <- count # microarray already normalised
 }
 
 proc.time()
-print("MESSAGE: Differential expression")
+cat("MESSAGE: Differential expression\n")
 
 # Filtering results
 if(genetable != "all"){
@@ -140,7 +139,7 @@ if(genetable != "all"){
 write.table(format(des, digits = 2), paste(tmpprefix, "tsv", sep = "."), quote = F, sep = "\t")
 
 proc.time()
-print("MESSAGE: Creating plots")
+cat("MESSAGE: Creating plots\n")
 if(plotnum == "all" | as.numeric(plotnum) > nrow(des)){
 	plotnum <- nrow(des)
 } else {
@@ -155,4 +154,4 @@ for(index in 1:plotnum){
 }
 
 proc.time()
-print("MESSAGE: End of script")
+cat("MESSAGE: End of script\n")

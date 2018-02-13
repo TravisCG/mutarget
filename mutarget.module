@@ -61,8 +61,10 @@ function mutarget_menu() {
 
 function add_header($inpgene, $mutnum, $totnum) {
   $html = "Input gene: " . $inpgene . "<br />\n";
-  $html = $html . "Number of mutated samples: " . $mutnum . "<br />\n";
-  $html = $html . "Total number of samples: " . $totnum . "<br .>\n";
+  if ($mutnum != "") {
+    $html = $html . "Number of mutated samples: " . $mutnum . "<br />\n";
+    $html = $html . "Total number of samples: " . $totnum . "<br .>\n";
+  }
   return $html;
 }
 
@@ -154,7 +156,7 @@ function runcmd($cmd, $progressvar, $maxstep) {
   $proc = popen($cmd, "r");
   while (!feof($proc)){
     $data = fgets($proc, 1025);
-    $text = substr($data, 13, -2); //R put some unnecessary characters
+    $text = substr($data, 8, -1);
 
     if (stripos($data, 'MESSAGE:') !== FALSE) {
       $myvar = array('msg'     => $text,
@@ -562,6 +564,12 @@ function target_form($form, $form_state){
     ),
     '#default_value' => '3',
   );
+
+  $form['dodectree'] = array(
+    '#type' => 'hidden',
+    '#value' => "1",
+  );
+
   } else {
     $form['tumtype'] = array(
       '#type' => 'select',
@@ -571,6 +579,11 @@ function target_form($form, $form_state){
 	'3'  => t('Breast Invasive Carcinoma - TCGA'),
       ),
       '#default_value' => '3',
+    );
+
+    $form['dodectree'] = array(
+      '#type' => 'hidden',
+      '#value' => "0",
     );
   }
 
@@ -652,12 +665,13 @@ function run_target_analysis($form, $form_state){
   $mutprev = $form_state['values']['prevalence'];
   $filtgene = $form_state['values']['filtergene'];
   $filttype = $form_state['values']['filtertype'];
+  $dodectree = $form_state['values']['dodectree'];
   $response = array();
 
   $dbsrc = dbsrcfromcancer($cancer);
   $cancer = (int)$cancer; //Remove B and other characters from the end of the cancerid
   chdir('sites/all/modules/mutarget/');
-  $cmd = "Rscript target.R $tmp_name $cancer $muttype $gene $pvalue $foldchange $mutprev $dbsrc $filtgene $filttype";
+  $cmd = "Rscript target.R $tmp_name $cancer $muttype $gene $pvalue $foldchange $mutprev $dbsrc $dodectree $filtgene $filttype";
   runcmd($cmd, "MuTarget_progress_" . $form_state['time'], 9);
 
   $html = add_header($gene, "", "");
