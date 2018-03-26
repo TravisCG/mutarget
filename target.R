@@ -33,7 +33,7 @@ dodt         <- argv[9]                  # Create decesion tree?
 filtergene   <- argv[10]
 filterout    <- argv[11]
 proc.time()
-cat("MESSAGE: Initialisation\n")
+cat("MESSAGE: Initialization\n")
 
 # Expression matrix
 count <- getExpMatrix(con, cancerid, dbsrc)
@@ -71,7 +71,7 @@ if (dbsrc == 2) {
 	exp  <- cpm(edge)
 }
 proc.time()
-cat("MESSAGE: Normalisation\n")
+cat("MESSAGE: Normalization\n")
 
 # Select gene of interest
 winp <- data.frame(exp = exp[testgene,], mutant = 0)
@@ -80,7 +80,7 @@ mincount   <- trunc(maxcount * mutprev / 100) # minimum number of mutation calcu
 
 mutmatrix <- read.table(paste("mut",cancerid,dbsrc,"tsv",sep="."), check.names = F, sep="\t")
 mutmatrix <- mutmatrix[rowSums(mutmatrix) > mincount & rowSums(mutmatrix) < maxcount,]
-result_table <- data.frame(foldchange = rep(0, nrow(mutmatrix)), pvalue = rep(1,nrow(mutmatrix)), adj.pval = rep(1,nrow(mutmatrix)))
+result_table <- data.frame("Fold change" = rep(0, nrow(mutmatrix)), "P value" = rep(1,nrow(mutmatrix)), FDR = rep(1,nrow(mutmatrix)), check.names = F)
 rownames(result_table) <- rownames(mutmatrix)
 
 # Iterate through genes and calculate Wilcox-test
@@ -88,16 +88,16 @@ proc.time()
 cat("MESSAGE: Start iteration\n")
 r <- apply(mutmatrix, 1, runWilcox, winp)
 r <- t(r)
-result_table$pvalue <- r[,1]
-result_table$foldchange <- r[,2]
+result_table$"P value" <- r[,1]
+result_table$"Fold change" <- r[,2]
 proc.time()
 cat("MESSAGE: End iteration\n")
 
 # Multiple test correction
-result_table$adj.pval <- p.adjust(result_table$pvalue, "BH")
+result_table$FDR <- p.adjust(result_table$"P value", "BH")
 
 #Filtering and producing table
-result_table <- result_table[result_table$adj.pval < qvalcutoff & result_table$foldchange > foldchcutoff,]
+result_table <- result_table[result_table$FDR < qvalcutoff & result_table$"Fold change" > foldchcutoff,]
 write.table(format(result_table, digits = 2), paste(tmpprefix, "tsv",sep="."), quote=F, sep ="\t")
 proc.time()
 cat("MESSAGE: Create decision tree\n")
@@ -111,17 +111,17 @@ if (dodt == "1") {
 	comm2 <- regmatches(rownames(winp), reg) # Get short names again from expression matrix, because some times a person has more than one expression data
 	ctree <- cbind(winp[grep(paste(comm, collapse="|"),rownames(winp)),1,drop=F], t(mutmatrix2[,comm2]))
 	resulttree <- ctree(exp ~ ., data = ctree, , control = ctree_control(maxdepth=3, minprob=0.05,testtype=c("Univariate")))
+
+	png(paste(tmpprefix,"dectree.png",sep="."))
+	plot(resulttree)
+	dev.off()
 }
 proc.time()
 cat("MESSAGE: Decision tree created\n")
 
-png(paste(tmpprefix,"dectree.png",sep="."))
-plot(resulttree)
-dev.off()
-
 # Boxplots
 proc.time()
-cat("MESSAGE: Start creating boxplots\n")
+cat("MESSAGE: Start creating plots\n")
 for(gene in rownames(result_table)){
 	f <- as.formula(paste("exp ~ ", gene, sep=""))
 	png(paste(tmpprefix,gene,"png",sep="."))

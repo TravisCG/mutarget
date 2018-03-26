@@ -8,7 +8,7 @@ source("common.R")
 argv       <- commandArgs(trailing = T)
 tmpprefix  <- argv[1]
 genes      <- argv[2]
-muttype    <- argv[3] #FIXME This is a comma separated list
+muttype    <- argv[3]
 cancerid   <- argv[4]
 pvalue     <- as.numeric(argv[5])
 foldchange <- as.numeric(argv[6])
@@ -21,7 +21,7 @@ filtergene <- argv[12]
 filterout  <- argv[13]
 
 proc.time()
-cat("MESSAGE: Initialisation\n")
+cat("MESSAGE: Initialization\n")
 
 # Expression matrix
 count <- getExpMatrix(con, cancerid, dbsrc)
@@ -64,7 +64,7 @@ if(length(coldata[coldata$gene == "Mut",]) == 0){
 	quit(save="no")
 }
 proc.time()
-cat("MESSAGE: Geting mutant samples\n")
+cat("MESSAGE: Getting mutant samples\n")
 
 # Differential expression using edgeR
 if(dbsrc != 2){
@@ -85,7 +85,6 @@ if(dbsrc != 2){
 		# I need to remove log, because "Our users cannot understand it..."
 		# No further comment
 		des$logFC <- exp(des$logFC)
-		colnames(des)[1] <- "Fold change"
 		des  <- des[,c(1,3,4)]
 		normexp <- cpm(edge)
 	} else if(diffexp == "DESeq2") {
@@ -100,7 +99,6 @@ if(dbsrc != 2){
 		des <- des[!is.na(des$padj) & des$padj < pvalue & abs(des$log2FoldChange) > foldchange,]
 		# Removing logarithm
 		des$log2FoldChange <- exp(des$log2FoldChange)
-		colnames(des)[2] <- "Fold change"
 		des <- as.matrix(des)[,c(2,5,6)]
 	}
 } else {
@@ -115,12 +113,12 @@ if(dbsrc != 2){
 	fit <- eBayes(fit)
 	proc.time()
 	cat("MESSAGE: Selecting significant results\n")
-	des <- topTable(fit, adjust.method="BH",p.value=pvalue,number=80000) #FIXME filtering by foldchange is missing
+	des <- topTable(fit, adjust.method="BH",p.value=pvalue,number=80000)
+	des <- des[abs(des$logFC) > foldchange,]
 	des$logFC <- exp(des$logFC)
-	colnames(des)[1] <- "Fold change"
 	normexp <- count # microarray already normalised
 }
-
+colnames(des) <- c("Fold change", "P value", "FDR")
 proc.time()
 cat("MESSAGE: Differential expression\n")
 

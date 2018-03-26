@@ -125,8 +125,8 @@ function mutarget_inputform($formchoose) {
 function change_to_mutargetdb() {
   $mutarget_db = array(
     'database' => 'mutarget',
-    'username' => 'XXXX',
-    'password' => 'XXXX',
+    'username' => 'root',
+    'password' => 'mta56TTK',
     'host' => 'localhost',
     'driver' => 'mysql',
   );
@@ -438,17 +438,10 @@ function run_genotype_analysis($form, $form_state){
   $dbsrc = dbsrcfromcancer($cancer);
   $cancer = (int)$cancer;
   chdir('sites/all/modules/mutarget/');
-  // Use cache data to speed up the process
-  if ($muttype == "12" && $cancer == 3 && $pvalue == 0.05 && $foldchange == 1.44 && $outtable == "all" && $numtopgenes == 5 && $filtgene == "" && $filttype == "" && $diffexp == 'edgeR' && $dbsrc == 1 && $outliers == 1){
-    $tmp_name = "cache/cache.$genes.TCGA";
-  }
-  else {
-    $cmd = "Rscript genotype.R $tmp_name $genes $muttype $cancer $pvalue $foldchange $outtable $numtopgenes $dbsrc $diffexp $outliers $filtgene $filttype";
-    $msg = runcmd($cmd, "MuTarget_progress_" . $form_state['time'], 8);
-  }
+  $cmd = "Rscript genotype.R $tmp_name $genes $muttype $cancer $pvalue $foldchange $outtable $numtopgenes $dbsrc $diffexp $outliers $filtgene $filttype";
+  $msg = runcmd($cmd, "MuTarget_progress_" . $form_state['time'], 8);
 
   $html = add_header($genes, $_SESSION['mutsamplesnum'], $_SESSION['totalsamplenum']);
-  $html = $html . $cmd . '<br />'; //FIXME just for debug
   if ($msg != '') {
     $html = $html . $msg;
   }
@@ -675,7 +668,7 @@ function run_target_analysis($form, $form_state){
   runcmd($cmd, "MuTarget_progress_" . $form_state['time'], 9);
 
   $html = add_header($gene, "", "");
-  $html = $html . $cmd;
+  //$html = $html . $cmd;
   $html = $html . create_table($tmp_name, 5);
   $html = $html . add_pictures($tmp_name);
   $html = $html . l(t('Back'), 'MuTarget/Target');
