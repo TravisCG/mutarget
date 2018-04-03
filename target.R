@@ -3,6 +3,9 @@
 suppressMessages(library(edgeR))
 suppressMessages(library(RMySQL))
 suppressMessages(library(partykit))
+suppressMessages(library(parallel))
+
+cl <- makeCluster(4, type = "PSOCK")
 
 runWilcox <- function(x, winp){
         samples <- names(x)[x > 0]
@@ -86,7 +89,8 @@ rownames(result_table) <- rownames(mutmatrix)
 # Iterate through genes and calculate Wilcox-test
 proc.time()
 cat("MESSAGE: Start iteration\n")
-r <- apply(mutmatrix, 1, runWilcox, winp)
+r <- parApply(cl, mutmatrix, 1, runWilcox, winp)
+stopCluster(cl)
 r <- t(r)
 result_table$"P value" <- r[,1]
 result_table$"Fold change" <- r[,2]

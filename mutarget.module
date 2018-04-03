@@ -125,8 +125,8 @@ function mutarget_inputform($formchoose) {
 function change_to_mutargetdb() {
   $mutarget_db = array(
     'database' => 'mutarget',
-    'username' => 'root',
-    'password' => 'mta56TTK',
+    'username' => 'XXXX',
+    'password' => 'XXXX',
     'host' => 'localhost',
     'driver' => 'mysql',
   );
@@ -558,11 +558,6 @@ function target_form($form, $form_state){
     '#default_value' => '3',
   );
 
-  $form['dodectree'] = array(
-    '#type' => 'hidden',
-    '#value' => "1",
-  );
-
   } else {
     $form['tumtype'] = array(
       '#type' => 'select',
@@ -572,11 +567,6 @@ function target_form($form, $form_state){
 	'3'  => t('Breast Invasive Carcinoma - TCGA'),
       ),
       '#default_value' => '3',
-    );
-
-    $form['dodectree'] = array(
-      '#type' => 'hidden',
-      '#value' => "0",
     );
   }
 
@@ -624,6 +614,12 @@ function target_form($form, $form_state){
     '#default_value' => '1',
     '#size' => 4,
     '#maxlength' => 4,
+  );
+
+  $form['advanced']['dodectree'] = array(
+    '#type' => 'checkbox',
+    '#title' => 'Do decision tree',
+    '#default_value' => '0',
   );
 
   $form['submit'] = array(
