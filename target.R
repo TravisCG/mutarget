@@ -81,7 +81,7 @@ winp <- data.frame(exp = exp[testgene,], mutant = 0)
 maxcount   <- length(unique(shortnames)) # maximum number of mutation should be less than all the samples (prevent one group syndrome)
 mincount   <- trunc(maxcount * mutprev / 100) # minimum number of mutation calculated from mutation prevalence
 
-mutmatrix <- read.table(paste("mut",cancerid,dbsrc,"tsv",sep="."), check.names = F, sep="\t")
+load(paste("mut",cancerid,dbsrc,"rdata",sep="."))
 mutmatrix <- mutmatrix[rowSums(mutmatrix) > mincount & rowSums(mutmatrix) < maxcount,]
 result_table <- data.frame("Fold change" = rep(0, nrow(mutmatrix)), "P value" = rep(1,nrow(mutmatrix)), FDR = rep(1,nrow(mutmatrix)), check.names = F)
 rownames(result_table) <- rownames(mutmatrix)
@@ -106,16 +106,16 @@ write.table(format(result_table, digits = 2), paste(tmpprefix, "tsv",sep="."), q
 proc.time()
 cat("MESSAGE: Create decision tree\n")
 
+mutmatrix2 <- data.frame(lapply(mutmatrix, factor, levels = c(0,1), labels=c("WT","Mut")), check.names = F)
+rownames(mutmatrix2) <- rownames(mutmatrix)
+comm  <- intersect(shortnames, colnames(mutmatrix)) # Get common elements to avoid missing rows between mutation and expression matrix
+reg   <- regexpr(paste(comm, collapse = "|"), rownames(winp))
+comm2 <- regmatches(rownames(winp), reg) # Get short names again from expression matrix, because some times a person has more than one expression data
+ctree <- cbind(winp[grep(paste(comm, collapse="|"),rownames(winp)),1,drop=F], t(mutmatrix2[,comm2]))
+
 # Decision tree
 if (dodt == "1") {
-	mutmatrix2 <- data.frame(lapply(mutmatrix, factor, levels = c(0,1), labels=c("WT","Mut")), check.names = F)
-	rownames(mutmatrix2) <- rownames(mutmatrix)
-	comm <- intersect(shortnames, colnames(mutmatrix)) # Get common elements to avoid missing rows between mutation and expression matrix
-	reg <- regexpr(paste(comm, collapse = "|"), rownames(winp))
-	comm2 <- regmatches(rownames(winp), reg) # Get short names again from expression matrix, because some times a person has more than one expression data
-	ctree <- cbind(winp[grep(paste(comm, collapse="|"),rownames(winp)),1,drop=F], t(mutmatrix2[,comm2]))
 	resulttree <- ctree(exp ~ ., data = ctree, , control = ctree_control(maxdepth=3, minprob=0.05,testtype=c("Univariate")))
-
 	png(paste(tmpprefix,"dectree.png",sep="."))
 	plot(resulttree)
 	dev.off()
@@ -126,6 +126,8 @@ cat("MESSAGE: Decision tree created\n")
 # Boxplots
 proc.time()
 cat("MESSAGE: Start creating plots\n")
+colnames(ctree) <- sub("-", "_", colnames(ctree)) # Formula cannot handle - in gene name
+rownames(result_table) <- sub("-", "_", rownames(result_table))
 for(gene in rownames(result_table)){
 	f <- as.formula(paste("exp ~ ", gene, sep=""))
 	png(paste(tmpprefix,gene,"png",sep="."))

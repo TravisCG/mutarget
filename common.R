@@ -17,8 +17,13 @@ getExpMatrixdb <- function(con, cancerid, datasrc){
 	return(count)
 }
 
-getExpMatrix <- function(con, cancerid, datasrc){
+getExpMatrixtxt <- function(con, cancerid, datasrc){
 	count <- as.matrix(read.table(paste("exp",cancerid,datasrc,"tsv",sep="."), sep = "\t", check.names = F))
+	return(count)
+}
+
+getExpMatrix <- function(con, cancerid, datasrc){
+	load(paste("exp",cancerid,datasrc,"rdata",sep="."))
 	return(count)
 }
 
