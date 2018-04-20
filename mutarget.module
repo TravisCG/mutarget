@@ -444,8 +444,9 @@ function run_genotype_analysis($form, $form_state){
   $html = add_header($genes, $_SESSION['mutsamplesnum'], $_SESSION['totalsamplenum']);
   if ($msg != '') {
     $html = $html . $msg;
+  } else {
+    $html = $html . create_table($tmp_name, $numtopgenes);
   }
-  $html = $html . create_table($tmp_name, $numtopgenes);
   $html = $html . add_pictures($tmp_name);
   $html = $html . l(t('Back'), 'MuTarget/Genotype');
   $response[] = ajax_command_html('#status_div', $html);
@@ -661,11 +662,15 @@ function run_target_analysis($form, $form_state){
   $cancer = (int)$cancer; //Remove B and other characters from the end of the cancerid
   chdir('sites/all/modules/mutarget/');
   $cmd = "Rscript target.R $tmp_name $cancer $muttype $gene $pvalue $foldchange $mutprev $dbsrc $dodectree $filtgene $filttype";
-  runcmd($cmd, "MuTarget_progress_" . $form_state['time'], 9);
+  $msg = runcmd($cmd, "MuTarget_progress_" . $form_state['time'], 9);
 
   $html = add_header($gene, "", "");
   //$html = $html . $cmd;
-  $html = $html . create_table($tmp_name, 5);
+  if ($msg != ''){
+    $html = $html . $msg;
+  } else {
+    $html = $html . create_table($tmp_name, 5);
+  }
   $html = $html . add_pictures($tmp_name);
   $html = $html . l(t('Back'), 'MuTarget/Target');
 

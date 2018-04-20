@@ -84,7 +84,7 @@ if(dbsrc != 2){
 		des  <- des[abs(des$logFC) > foldchange,]
 		# I need to remove log, because "Our users cannot understand it..."
 		# No further comment
-		des$logFC <- exp(des$logFC)
+		#des$logFC <- des$logFC**2
 		des  <- des[,c(1,3,4)]
 		normexp <- cpm(edge)
 	} else if(diffexp == "DESeq2") {
@@ -98,7 +98,7 @@ if(dbsrc != 2){
 		des <- results(des, contrast = c("gene", "Mut", "WT"))
 		des <- des[!is.na(des$padj) & des$padj < pvalue & abs(des$log2FoldChange) > foldchange,]
 		# Removing logarithm
-		des$log2FoldChange <- exp(des$log2FoldChange)
+		#des$log2FoldChange <- des$log2FoldChange**2
 		des <- as.matrix(des)[,c(2,5,6)]
 	}
 } else {
@@ -115,10 +115,10 @@ if(dbsrc != 2){
 	cat("MESSAGE: Selecting significant results\n")
 	des <- topTable(fit, adjust.method="BH",p.value=pvalue,number=80000)
 	des <- des[abs(des$logFC) > foldchange,]
-	des$logFC <- exp(des$logFC)
+	#des$logFC <- des$logFC**2
 	normexp <- count # microarray already normalised
 }
-colnames(des) <- c("Fold change", "P value", "FDR")
+colnames(des) <- c("logFC", "P value", "FDR")
 proc.time()
 cat("MESSAGE: Differential expression\n")
 
