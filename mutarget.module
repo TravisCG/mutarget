@@ -438,7 +438,8 @@ function run_genotype_analysis($form, $form_state){
   $dbsrc = dbsrcfromcancer($cancer);
   $cancer = (int)$cancer;
   chdir('sites/all/modules/mutarget/');
-  $cmd = "Rscript genotype.R $tmp_name $genes $muttype $cancer $pvalue $foldchange $outtable $numtopgenes $dbsrc $diffexp $outliers $filtgene $filttype";
+  //$cmd = "Rscript genotype.R $tmp_name $genes $muttype $cancer $pvalue $foldchange $outtable $numtopgenes $dbsrc $diffexp $outliers $filtgene $filttype";
+  $cmd = "powermw onegroup $genes mut.$cancer.$dbsrc.$muttype.tsv exp.$cancer.$dbsrc.tsv >$tmp_name" + ".tsv";
   $msg = runcmd($cmd, "MuTarget_progress_" . $form_state['time'], 8);
 
   $html = add_header($genes, $_SESSION['mutsamplesnum'], $_SESSION['totalsamplenum']);
@@ -661,7 +662,8 @@ function run_target_analysis($form, $form_state){
   $dbsrc = dbsrcfromcancer($cancer);
   $cancer = (int)$cancer; //Remove B and other characters from the end of the cancerid
   chdir('sites/all/modules/mutarget/');
-  $cmd = "Rscript target.R $tmp_name $cancer $muttype $gene $pvalue $foldchange $mutprev $dbsrc $dodectree $filtgene $filttype";
+  //$cmd = "Rscript target.R $tmp_name $cancer $muttype $gene $pvalue $foldchange $mutprev $dbsrc $dodectree $filtgene $filttype";
+  $cmd = "powermw onevalue $gene mut.$cancer.$dbsrc.$muttype.tsv exp.$cancer.$dbsrc.tsv >$tmp_name.tsv";
   $msg = runcmd($cmd, "MuTarget_progress_" . $form_state['time'], 9);
 
   $html = add_header($gene, "", "");
