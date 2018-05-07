@@ -71,7 +71,7 @@ function add_header($inpgene, $mutnum, $totnum) {
 function create_table($tmpname, $maxrow) {
   if (file_exists($tmpname . ".tsv") == true) {    
     $table = fopen($tmpname . ".tsv", "r");
-    $html = "<table><thead><tr><th>Gene</th><th>";
+    $html = "<table><thead><tr><th>";
     $header = fgets($table, 1024);
     $header = str_replace("\t", "</th><th>", $header);
     $html = $html . $header;
@@ -151,7 +151,6 @@ function dbsrcfromcancer($cancer){
 
 function runcmd($cmd, $progressvar, $maxstep) {
   $msg = '';
-  $x = 1;
 
   $proc = popen($cmd, "r");
   while (!feof($proc)){
@@ -160,15 +159,13 @@ function runcmd($cmd, $progressvar, $maxstep) {
 
     if (stripos($data, 'MESSAGE:') !== FALSE) {
       $myvar = array('msg'     => $text,
-                     'percent' => (int)($x / $maxstep * 100),);
+                     'percent' => substr($text, 0, -1));
 
       variable_set($progressvar, $myvar);
-
-      $x = $x + 1; // Count steps
     }
 
     if (stripos($data, 'WARNING:') !== FALSE){
-      $msg = $msg . $text;
+      $msg = $msg . $text . "<br/>";
     }
   }
 
@@ -408,7 +405,7 @@ function genotype_form($form, $form_state) {
         'type' => 'bar',
 	'message' => t('Calculating'),
 	'url' => url('MuTarget/progress/' . $form_state['time']),
-	'interval' => 1000,
+	'interval' => 10,
       ),
     ),
   );
@@ -438,8 +435,7 @@ function run_genotype_analysis($form, $form_state){
   $dbsrc = dbsrcfromcancer($cancer);
   $cancer = (int)$cancer;
   chdir('sites/all/modules/mutarget/');
-  //$cmd = "Rscript genotype.R $tmp_name $genes $muttype $cancer $pvalue $foldchange $outtable $numtopgenes $dbsrc $diffexp $outliers $filtgene $filttype";
-  $cmd = "powermw onegroup $genes mut.$cancer.$dbsrc.$muttype.tsv exp.$cancer.$dbsrc.tsv >$tmp_name" + ".tsv";
+  $cmd = "./powermw onegroup $genes mut.$cancer.$dbsrc.$muttype.tsv exp.$cancer.$dbsrc.tsv $tmp_name.tsv";
   $msg = runcmd($cmd, "MuTarget_progress_" . $form_state['time'], 8);
 
   $html = add_header($genes, $_SESSION['mutsamplesnum'], $_SESSION['totalsamplenum']);
@@ -632,7 +628,7 @@ function target_form($form, $form_state){
       'progress' => array(
 	'type' => 'bar',
 	'message' => 'Calculating...',
-	'interval' => 1000,
+	'interval' => 10,
         'url' => url('MuTarget/progress/') . $form_state['time'],
       ),
     ),
@@ -662,12 +658,10 @@ function run_target_analysis($form, $form_state){
   $dbsrc = dbsrcfromcancer($cancer);
   $cancer = (int)$cancer; //Remove B and other characters from the end of the cancerid
   chdir('sites/all/modules/mutarget/');
-  //$cmd = "Rscript target.R $tmp_name $cancer $muttype $gene $pvalue $foldchange $mutprev $dbsrc $dodectree $filtgene $filttype";
-  $cmd = "powermw onevalue $gene mut.$cancer.$dbsrc.$muttype.tsv exp.$cancer.$dbsrc.tsv >$tmp_name.tsv";
+  $cmd = "./powermw onevalue $gene mut.$cancer.$dbsrc.$muttype.tsv exp.$cancer.$dbsrc.tsv $tmp_name.tsv";
   $msg = runcmd($cmd, "MuTarget_progress_" . $form_state['time'], 9);
 
   $html = add_header($gene, "", "");
-  //$html = $html . $cmd;
   if ($msg != ''){
     $html = $html . $msg;
   } else {
