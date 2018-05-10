@@ -266,32 +266,20 @@ function genotype_form($form, $form_state) {
   );
 
   $form['advanced']['mutations']['muttype'] = array(
-    '#type' => 'checkboxes',
+    '#type' => 'radios',
     '#title' => t('Mutation type'),
     '#options' => array(
-      '1' => t('Inframe insertion'),
-      '2' => t('Inframe deletion'),
       '3' => t('Non-coding exon variant'),
-      '5' => t('5\' UTR'),
       '6' => t('NMD transcript variant'),
       '9' => t('Non-coding'),
       '10' => t('Downstream gene'),
-      '11' => t('Intergenic variant'),
       '12' => t('Missense'),
       '14' => t('Intron variant'),
-      '15' => t('Regulatory region variant'),
-      '16' => t('Stop gained'),
       '18' => t('Synonymous'),
-      '20' => t('Frameshift'),
-      '21' => t('Splice acceptor'),
-      '22' => t('Splice donor'),
-      '23' => t('TFBS ablation'),
-      '24' => t('Splice region variant'),
       '26' => t('Upstream gene variant'),
       '27' => t('3\' UTR'),
-      '28' => t('TF binding site'),
     ),
-    '#default_value' => array('12'),
+    '#default_value' => '12',
     '#ajax' => array(
       'callback' => 'get_mutated_samples',
       'wrapper' => 'samplesize',
@@ -328,17 +316,6 @@ function genotype_form($form, $form_state) {
     '#collapsible' => TRUE,
     '#collapsed' => TRUE,
   );
-
-  $form['advanced']['statistics']['diffexp'] = array(
-    '#type' => 'select',
-    '#title' => t('Differential expression calculation (TCGA only)'),
-    '#options' => array(
-      'edgeR' => t('edgeR'),
-      'DESeq2' => t('DESeq2'),
-    ),
-    '#default_value' => 'edgeR',
-  );
-
 
   $form['advanced']['statistics']['pvalue'] = array(
     '#type' => 'textfield',
@@ -426,7 +403,6 @@ function run_genotype_analysis($form, $form_state){
   $foldchange  = $form_state['values']['foldchange'];
   $outtable    = $form_state['values']['table'];
   $numtopgenes = $form_state['values']['numtopgenes'];
-  $diffexp     = $form_state['values']['diffexp'];
   $outliers    = $form_state['values']['outliers'];
   $filtgene    = $form_state['values']['filtergene'];
   $filttype    = $form_state['values']['filtertype'];
@@ -612,12 +588,6 @@ function target_form($form, $form_state){
     '#default_value' => '1',
     '#size' => 4,
     '#maxlength' => 4,
-  );
-
-  $form['advanced']['dodectree'] = array(
-    '#type' => 'checkbox',
-    '#title' => 'Do decision tree',
-    '#default_value' => '0',
   );
 
   $form['submit'] = array(
