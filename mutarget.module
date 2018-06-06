@@ -191,7 +191,7 @@ function getgenelist($type) {
 }
 
 /* Run command line programs the parse output during the run */
-function runcmd($cmd, $progressvar) {
+function runcmd($cmd, $progressvar, $task) {
   $msg = '';
 
   $proc = popen($cmd, "r");
@@ -200,8 +200,8 @@ function runcmd($cmd, $progressvar) {
     $text = substr($data, 8, -1);
 
     if (stripos($data, 'MESSAGE:') !== FALSE) {
-      $myvar = array('msg'     => "",
-                     'percent' => substr($text, 0, -1));
+      $myvar = array('msg'     => $task,
+                     'percent' => $text,);
 
       variable_set($progressvar, $myvar);
     }
@@ -460,11 +460,10 @@ function run_genotype_analysis($form, $form_state){
   chdir('sites/all/modules/mutarget/');
   $cmd = "./powermw onegroup $genes mut.$cancer.$dbsrc.$muttype.tsv exp.$cancer.$dbsrc.tsv $tmp_name.tsv $filttype $filtgene";
   $cmd2= "Rscript createpic.R genotype $genes $tmp_name $tmp_name.tsv exp.$cancer.$dbsrc.tsv mut.$cancer.$dbsrc.$muttype.tsv $numtopgenes $outliers";
-  $msg = runcmd($cmd, "mutarget_progress_" . $form_state['time']);
+  $msg = runcmd($cmd, "mutarget_progress_" . $form_state['time'], "Mann-Whitney test");
   if ($numtopgenes > 0) {
-     $msg = runcmd($cmd2, "mutarget_progress_" . $form_state['time']);
+	  $msg = $msg . runcmd($cmd2, "mutarget_progress_" . $form_state['time'], "Picture generation");
   }
-
   $html = add_header($genes, $_SESSION['mutsamplesnum'], $_SESSION['totalsamplenum']);
   if ($msg != '') {
     $html = $html . $msg;
@@ -680,8 +679,8 @@ function run_target_analysis($form, $form_state){
   chdir('sites/all/modules/mutarget/');
   $cmd = "./powermw onevalue $gene mut.$cancer.$dbsrc.$muttype.tsv exp.$cancer.$dbsrc.tsv $tmp_name.tsv $filttype $filtgene";
   $cmd2= "Rscript createpic.R target $gene $tmp_name $tmp_name.tsv exp.$cancer.$dbsrc.tsv mut.$cancer.$dbsrc.$muttype.tsv 5 0";
-  $msg = runcmd($cmd, "mutarget_progress_" . $form_state['time']);
-  $msg = $msg . runcmd($cmd2, "mutarget_progress_" . $form_state['time']);
+  $msg = runcmd($cmd, "mutarget_progress_" . $form_state['time'], "Mann-Whitney test");
+  $msg = $msg . runcmd($cmd2, "mutarget_progress_" . $form_state['time'], "Picture generation");
 
   $html = add_header($gene, "", "");
   if ($msg != ''){
