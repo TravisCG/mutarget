@@ -30,5 +30,5 @@ result  <- read.table(resultfile, header = T, check.names = F)
 for(index in 1:plotnum){
 	genename <- result[index,1]
 	drawboxplot(mode, inputgene, tmpprefix, normexp, mut, genename, outliers)
-	cat(paste("MESSAGE: ",index * 100 / plotnum,"%\n",sep=""))
+	cat(paste("MESSAGE:",index * 100 / plotnum,"\n",sep=""))
 }
