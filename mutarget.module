@@ -100,7 +100,7 @@ function create_table($tmpname, $maxrow, $pmax, $minfc, $geneofinterest, $mutpre
 	}
 	$fc = (float)$fields[1];
 	$p  = (float)$fields[3];
-	if( (abs($fc) > $minfc) && ($p < $pmax) ){
+	if( ($fc > $minfc || $fc < (1.0 / $minfc)) && ($p < $pmax) ){
           $html = $html . "<tr><td>";
           $data = str_replace("\t", "</td><td>", $data);
           $data = str_replace("\n", "", $data);
@@ -369,7 +369,7 @@ function genotype_form($form, $form_state) {
 
   $form['advanced']['statistics']['foldchange'] = array(
     '#type' => 'textfield',
-    '#title' => t('log2Fold change cutoff'),
+    '#title' => t('Fold change cutoff'),
     '#default_value' => '0.15',
     '#size' => 4,
     '#maxlength' => 6,
@@ -625,7 +625,7 @@ function target_form($form, $form_state){
 
   $form['advanced']['foldchange'] = array(
     '#type' => 'textfield',
-    '#title' => t('log2Fold change cutoff'),
+    '#title' => t('Fold change cutoff'),
     '#default_value' => '0.15',
     '#size' => 4,
     '#maxlength' => 6,
@@ -637,6 +637,24 @@ function target_form($form, $form_state){
     '#default_value' => '1',
     '#size' => 4,
     '#maxlength' => 4,
+  );
+
+  $form['advanced']['numtopgenes'] = array(
+    '#type' => 'select',
+    '#title' => t('Show plot'),
+    '#options' => array(
+      '0' => t('none'),
+      '5' => t('Top 5 genes'),
+      '10' => t('Top 10 genes'),
+      '20' => t('Top 20 genes'),
+      'all' => t('All genes'),
+    ),
+    '#default_value' => '0',
+  );
+
+  $form['advanced']['outliers'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Show outliers'),
   );
 
   $form['submit'] = array(
@@ -672,15 +690,19 @@ function run_target_analysis($form, $form_state){
   $filtgene = $form_state['values']['filtergene'];
   $filttype = $form_state['values']['filtertype'];
   $dodectree = $form_state['values']['dodectree'];
+  $numtopgenes = $form_state['values']['numtopgenes'];
+  $outlier = $form_state['values']['outliers'];
   $response = array();
 
   $dbsrc = dbsrcfromcancer($cancer);
   $cancer = (int)$cancer; //Remove B and other characters from the end of the cancerid
   chdir('sites/all/modules/mutarget/');
   $cmd = "./powermw onevalue $gene mut.$cancer.$dbsrc.$muttype.tsv exp.$cancer.$dbsrc.tsv $tmp_name.tsv $filttype $filtgene";
-  $cmd2= "Rscript createpic.R target $gene $tmp_name $tmp_name.tsv exp.$cancer.$dbsrc.tsv mut.$cancer.$dbsrc.$muttype.tsv 5 0";
+  $cmd2= "Rscript createpic.R target $gene $tmp_name $tmp_name.tsv exp.$cancer.$dbsrc.tsv mut.$cancer.$dbsrc.$muttype.tsv $numtopgenes $outlier";
   $msg = runcmd($cmd, "mutarget_progress_" . $form_state['time'], "Mann-Whitney test");
-  $msg = $msg . runcmd($cmd2, "mutarget_progress_" . $form_state['time'], "Picture generation");
+  if ($numtopgenes > 0){
+    $msg = $msg . runcmd($cmd2, "mutarget_progress_" . $form_state['time'], "Picture generation");
+  }
 
   $html = add_header($gene, "", "");
   if ($msg != ''){
