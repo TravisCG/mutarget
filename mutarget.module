@@ -75,7 +75,7 @@ function create_table($tmpname, $maxrow, $pmax, $minfc, $geneofinterest, $mutpre
       $genelist = getgenelist($geneofinterest);
     }
     $pmax = (float)$pmax;
-    $minfc = (float)$minfc;
+    $minperc = (float)$minfc / 100.0;
 
     $table = fopen($tmpname . ".tsv", "r");
     $html = "<table><thead><tr><th>";
@@ -99,8 +99,14 @@ function create_table($tmpname, $maxrow, $pmax, $minfc, $geneofinterest, $mutpre
 	  }
 	}
 	$fc = (float)$fields[1];
+	if ($fc > 1.0) {
+	  $perc = $fc - 1.0;
+	}
+	else {
+	  $perc = 1.0 - $fc;
+	}
 	$p  = (float)$fields[3];
-	if( ($fc > $minfc || $fc < (1.0 / $minfc)) && ($p < $pmax) ){
+	if ( ($perc > $minperc) && ($p < $pmax) ){
           $html = $html . "<tr><td>";
           $data = str_replace("\t", "</td><td>", $data);
           $data = str_replace("\n", "", $data);
@@ -369,8 +375,8 @@ function genotype_form($form, $form_state) {
 
   $form['advanced']['statistics']['foldchange'] = array(
     '#type' => 'textfield',
-    '#title' => t('Fold change cutoff'),
-    '#default_value' => '0.15',
+    '#title' => t('Fold change cutoff (+/- percentage)'),
+    '#default_value' => '50',
     '#size' => 4,
     '#maxlength' => 6,
   );
@@ -625,8 +631,8 @@ function target_form($form, $form_state){
 
   $form['advanced']['foldchange'] = array(
     '#type' => 'textfield',
-    '#title' => t('Fold change cutoff'),
-    '#default_value' => '0.15',
+    '#title' => t('Fold change cutoff (+/- percentage)'),
+    '#default_value' => '50',
     '#size' => 4,
     '#maxlength' => 6,
   );
