@@ -317,9 +317,8 @@ function genotype_form($form, $form_state) {
     '#type' => 'radios',
     '#title' => t('Mutation type'),
     '#options' => array(
-      '3' => t('Non-coding exon variant'),
       '6' => t('NMD transcript variant'),
-      '9' => t('Non-coding'),
+      '9' => t('Non-coding variant'),
       '10' => t('Downstream gene'),
       '12' => t('Missense'),
       '14' => t('Intron variant'),
