@@ -165,6 +165,13 @@ function change_to_mutargetdb() {
   db_set_active('mutarget');
 }
 
+function get_cancertype($cancer) {
+  change_to_mutargetdb();
+  $result = db_query("select cancername from cancer where cancerid = " . $cancer)->fetchField();
+  db_set_active();
+  return($result . "<br />");
+}
+
 /* Find out data source from the cancer type */
 function dbsrcfromcancer($cancer){
   // Let's start hacking
@@ -710,6 +717,7 @@ function run_target_analysis($form, $form_state){
   }
 
   $html = add_header($gene, "", "");
+  $html = $html . "Tumor type: " . get_cancertype($cancer);
   if ($msg != ''){
     $html = $html . $msg;
   } else {
