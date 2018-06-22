@@ -105,7 +105,7 @@ function create_table($tmpname, $maxrow, $pmax, $minfc, $geneofinterest, $mutpre
 	else {
 	  $perc = 1.0 - $fc;
 	}
-	$p  = (float)$fields[3];
+	$p  = (float)$fields[2];
 	if ( ($perc > $minperc) && ($p < $pmax) ){
           $html = $html . "<tr><td>";
           $data = str_replace("\t", "</td><td>", $data);
