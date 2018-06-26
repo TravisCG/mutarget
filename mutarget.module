@@ -68,7 +68,7 @@ function add_header($inpgene, $mutnum, $totnum) {
   return $html;
 }
 
-function create_table($tmpname, $maxrow, $pmax, $minfc, $geneofinterest, $mutprev = 1) {
+function create_table($tmpname, $pmax, $minfc, $geneofinterest, $FDR, $mutprev = 1) {
   if (file_exists($tmpname . ".tsv") == true) {    
       
     if ($geneofinterest != "all") {
@@ -83,7 +83,7 @@ function create_table($tmpname, $maxrow, $pmax, $minfc, $geneofinterest, $mutpre
     $header = str_replace("\t", "</th><th>", $header);
     $html = $html . $header;
     $html = $html . "</th></tr></thead><tbody>";
-    while (!feof($table) && $maxrow > 0) {
+    while (!feof($table)) {
       $data = fgets($table, 1024);
       if ($data != ""){
 	$fields = explode("\t", $data);
@@ -105,14 +105,18 @@ function create_table($tmpname, $maxrow, $pmax, $minfc, $geneofinterest, $mutpre
 	else {
 	  $perc = 1.0 - $fc;
 	}
-	$p  = (float)$fields[2];
+	if ($FDR == 0){
+	  $p  = (float)$fields[2];
+	}
+	else{
+          $p = (float)$fields[3];
+	}
 	if ( ($perc > $minperc) && ($p < $pmax) ){
           $html = $html . "<tr><td>";
           $data = str_replace("\t", "</td><td>", $data);
           $data = str_replace("\n", "", $data);
           $html = $html . $data;
 	  $html = $html . "</td></tr>\n";
-          $maxrow = $maxrow - 1;
 	}
       }
     }
@@ -387,6 +391,11 @@ function genotype_form($form, $form_state) {
     '#maxlength' => 6,
   );
 
+  $form['advanced']['statistics']['FDR'] = array(
+    '#type' => 'checkbox',
+    '#title' => 'Benjamini-Hochberg false discovery rate',
+  );
+
   $form['advanced']['output'] = array(
     '#type' => 'fieldset',
     '#title' => t('Output options'),
@@ -461,6 +470,7 @@ function run_genotype_analysis($form, $form_state){
   $outliers    = $form_state['values']['outliers'];
   $filtgene    = $form_state['values']['filtergene'];
   $filttype    = $form_state['values']['filtertype'];
+  $FDR         = $form_state['values']['FDR'];
   $response    = array();
 
   if($numtopgenes == "all"){
@@ -480,7 +490,7 @@ function run_genotype_analysis($form, $form_state){
   if ($msg != '') {
     $html = $html . $msg;
   } else {
-    $html = $html . create_table($tmp_name, 70000, $pvalue, $foldchange, $outtable);
+    $html = $html . create_table($tmp_name, $pvalue, $foldchange, $outtable, $FDR);
   }
   $html = $html . add_pictures($tmp_name);
   $html = $html . l(t('Back'), 'MuTarget/Genotype');
@@ -669,6 +679,11 @@ function target_form($form, $form_state){
     '#title' => t('Show outliers'),
   );
 
+  $form['advanced']['FDR'] = array(
+    '#type' => 'checkbox',
+    '#title' => 'Benjamini-Hochberg false discovery rate',
+  );
+
   $form['submit'] = array(
     '#type' => 'submit',
     '#value' => t('Send'),
@@ -692,19 +707,20 @@ function target_form($form, $form_state){
 }
 
 function run_target_analysis($form, $form_state){
-  $tmp_name = tempnam("", "MUT");
-  $cancer = $form_state['values']['tumtype'];
-  $muttype = "12";
-  $gene = $form_state['values']['gene'];
-  $pvalue = $form_state['values']['pvalue'];
-  $foldchange = $form_state['values']['foldchange'];
-  $mutprev = $form_state['values']['prevalence'];
-  $filtgene = $form_state['values']['filtergene'];
-  $filttype = $form_state['values']['filtertype'];
-  $dodectree = $form_state['values']['dodectree'];
+  $tmp_name    = tempnam("", "MUT");
+  $cancer      = $form_state['values']['tumtype'];
+  $muttype     = "12";
+  $gene        = $form_state['values']['gene'];
+  $pvalue      = $form_state['values']['pvalue'];
+  $foldchange  = $form_state['values']['foldchange'];
+  $mutprev     = $form_state['values']['prevalence'];
+  $filtgene    = $form_state['values']['filtergene'];
+  $filttype    = $form_state['values']['filtertype'];
+  $dodectree   = $form_state['values']['dodectree'];
   $numtopgenes = $form_state['values']['numtopgenes'];
-  $outlier = $form_state['values']['outliers'];
-  $response = array();
+  $outlier     = $form_state['values']['outliers'];
+  $FDR         = $form_state['values']['FDR'];
+  $response    = array();
 
   $dbsrc = dbsrcfromcancer($cancer);
   $cancer = (int)$cancer; //Remove B and other characters from the end of the cancerid
@@ -721,7 +737,7 @@ function run_target_analysis($form, $form_state){
   if ($msg != ''){
     $html = $html . $msg;
   } else {
-    $html = $html . create_table($tmp_name, 5, $pvalue, $foldchange, "all", $mutprev);
+    $html = $html . create_table($tmp_name, $pvalue, $foldchange, "all", $FDR, $mutprev);
   }
   $html = $html . add_pictures($tmp_name);
   $html = $html . l(t('Back'), 'MuTarget/Target');
