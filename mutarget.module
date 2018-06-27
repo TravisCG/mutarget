@@ -105,13 +105,18 @@ function create_table($tmpname, $pmax, $minfc, $geneofinterest, $FDR, $mutprev =
 	else {
 	  $perc = 1.0 - $fc;
 	}
+
+	$p = (float)$fields[2];
+	$fdr = (float)$fields[3];
+
 	if ($FDR == 0){
-	  $p  = (float)$fields[2];
+	  $fdrlimit = 1;
 	}
 	else{
-          $p = (float)$fields[3];
+          $fdrlimit = 0.1;
 	}
-	if ( ($perc > $minperc) && ($p < $pmax) ){
+
+	if ( ($perc > $minperc) && ($p < $pmax) && ($fdr < $fdrlimit)){
           $html = $html . "<tr><td>";
           $data = str_replace("\t", "</td><td>", $data);
           $data = str_replace("\n", "", $data);
@@ -158,8 +163,8 @@ function mutarget_inputform($formchoose) {
 function change_to_mutargetdb() {
   $mutarget_db = array(
     'database' => 'mutarget',
-    'username' => 'XXXX',
-    'password' => 'XXXX',
+    'username' => 'root',
+    'password' => 'mta56TTK',
     'host' => 'localhost',
     'driver' => 'mysql',
   );
@@ -393,7 +398,7 @@ function genotype_form($form, $form_state) {
 
   $form['advanced']['statistics']['FDR'] = array(
     '#type' => 'checkbox',
-    '#title' => 'Benjamini-Hochberg false discovery rate',
+    '#title' => 'Benjamini-Hochberg false discovery rate below 10%',
   );
 
   $form['advanced']['output'] = array(
@@ -681,7 +686,7 @@ function target_form($form, $form_state){
 
   $form['advanced']['FDR'] = array(
     '#type' => 'checkbox',
-    '#title' => 'Benjamini-Hochberg false discovery rate',
+    '#title' => 'Benjamini-Hochberg false discovery rate below 10%',
   );
 
   $form['submit'] = array(
