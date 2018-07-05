@@ -167,6 +167,14 @@ function get_cancertype($cancer) {
   return($result . "<br />");
 }
 
+/* The input is the gene synonime, the output is the gene name, which can we use for the rest of the pipeline */
+function get_genename($synonime) {
+  change_to_mutargetdb();
+  $result = db_query("select genename from genetable left join genesynonime on genetable_geneid = geneid where synonimename = '" . $synonime . "'")->fetchField();
+  db_set_active();
+  return($result);
+}
+
 /* Find out data source from the cancer type */
 function dbsrcfromcancer($cancer){
   // Let's start hacking
@@ -465,6 +473,8 @@ function run_genotype_analysis($form, $form_state){
   $FDR         = $form_state['values']['FDR'];
   $response    = array();
 
+  $genes = get_genename($genes);
+
   if ($numtopgenes == "all"){
     $numtopgenes = 70000; // Maximum gene number
   }
@@ -719,6 +729,8 @@ function run_target_analysis($form, $form_state){
   $outlier     = $form_state['values']['outliers'];
   $FDR         = $form_state['values']['FDR'];
   $response    = array();
+
+  $gene = get_genename($gene);
 
   $dbsrc = dbsrcfromcancer($cancer);
   $cancer = (int)$cancer; //Remove B and other characters from the end of the cancerid
