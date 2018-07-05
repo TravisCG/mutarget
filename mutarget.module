@@ -270,6 +270,7 @@ function genotype_form($form, $form_state) {
       '4'  => t('Prostate Adenocarcinoma - TCGA'),
       '5'  => t('Rectum Adenocarcinoma - TCGA'),
       '6'  => t('Skin Cutaneous Melanoma - TCGA'),
+      '16' => t('Stomach Adenocarcinoma'),
     ),
     '#default_value' => '3',
     '#ajax' => array(
@@ -510,7 +511,7 @@ function get_mutated_samples($form, $form_state){
 
   change_to_mutargetdb();
   $all = db_query("select count(distinct(name)) as counted from individual where cancer_cancerid =" . $tumtype . " and datasource_datasourceid = " . $dbsrc . ";")->fetchField();
-  $mutated = db_query("select count(distinct(name)) as mutated from mutation left join (cancer,genetable,muteffect,individual) on (individual_cancer_cancerid = cancerid and genetable_geneid = geneid and muteffect_effectid = effectid and individual_patientid = patientid) where effectid = " . $muttype . " and cancerid = " . $tumtype . " and genename = '" . $gene . "' and datasource_datasourceid = " . $dbsrc . ";" )->fetchField();
+  $mutated = db_query("select count(distinct(name)) as mutated from mutation left join (cancer,genesynonime,muteffect,individual) on (individual_cancer_cancerid = cancerid and genesynonime.genetable_geneid = mutation.genetable_geneid and muteffect_effectid = effectid and individual_patientid = patientid) where effectid = " . $muttype . " and cancerid = " . $tumtype . " and synonimename = '" . $gene . "' and datasource_datasourceid = " . $dbsrc . ";" )->fetchField();
   $_SESSION['mutsamplesnum'] = $mutated;
   $_SESSION['totalsamplenum'] = $all;
 
@@ -526,10 +527,10 @@ function gene_autocomplete($string) {
   $matches = array();
 
   change_to_mutargetdb();
-  $result = db_query("select genename from genetable where genename like '" . $string . "%' order by genename limit 10");
+  $result = db_query("select synonimename from genesynonime where synonimename like '" . $string . "%' order by synonimename limit 10");
 
   foreach ($result as $rec) {
-    $matches[ $rec->genename ] = $rec->genename;
+    $matches[ $rec->synonimename ] = $rec->synonimename;
   }
 
   db_set_active();
@@ -595,6 +596,7 @@ function target_form($form, $form_state){
       '4'  => t('Prostate Adenocarcinoma - TCGA'),
       '5'  => t('Rectum Adenocarcinoma - TCGA'),
       '6'  => t('Skin Cutaneous Melanoma - TCGA'),
+      '16' => t('Stomach Adenocarcinoma'),
     ),
     '#default_value' => '3',
   );
