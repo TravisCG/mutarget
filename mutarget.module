@@ -149,8 +149,8 @@ function mutarget_inputform($formchoose) {
 function change_to_mutargetdb() {
   $mutarget_db = array(
     'database' => 'mutarget',
-    'username' => 'XXXX',
-    'password' => 'XXXX',
+    'username' => 'root',
+    'password' => 'mta56TTK',
     'host' => 'localhost',
     'driver' => 'mysql',
   );
@@ -385,7 +385,7 @@ function genotype_form($form, $form_state) {
 
   $form['advanced']['statistics']['foldchange'] = array(
     '#type' => 'textfield',
-    '#title' => t('Fold change cutoff (+/- percentage)'),
+    '#title' => t('Fold change cutoff (N < FC < 1/N)'),
     '#default_value' => '50',
     '#size' => 4,
     '#maxlength' => 6,
@@ -408,8 +408,8 @@ function genotype_form($form, $form_state) {
     '#title' => t('Generate table for'),
     '#options' => array(
       'all' => t('All genes'),
-      'actionable' => t('Actionable genes only'),
-      'fda' => t('FDA approvead actionable genes only'),
+      'actionable' => t('<a href="http://www.cancerrxgene.org/translation/Drug">Actionable genes only</a>'),
+      'fda' => t('<a href="https://www.cancer.gov/about-cancer/treatment/drugs/cancer-type">FDA approvead actionable genes only</a>'),
     ),
     '#default_value' => 'all',
   );
@@ -655,7 +655,7 @@ function target_form($form, $form_state){
 
   $form['advanced']['foldchange'] = array(
     '#type' => 'textfield',
-    '#title' => t('Fold change cutoff (+/- percentage)'),
+    '#title' => t('Fold change cutoff (N < FC < 1/N)'),
     '#default_value' => '50',
     '#size' => 4,
     '#maxlength' => 6,
