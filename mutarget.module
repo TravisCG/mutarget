@@ -278,7 +278,7 @@ function genotype_form($form, $form_state) {
       '4'  => t('Prostate Adenocarcinoma - TCGA'),
       '5'  => t('Rectum Adenocarcinoma - TCGA'),
       '6'  => t('Skin Cutaneous Melanoma - TCGA'),
-      '16' => t('Stomach Adenocarcinoma'),
+      '16' => t('Stomach Adenocarcinoma - TCGA'),
     ),
     '#default_value' => '3',
     '#ajax' => array(
@@ -606,7 +606,7 @@ function target_form($form, $form_state){
       '4'  => t('Prostate Adenocarcinoma - TCGA'),
       '5'  => t('Rectum Adenocarcinoma - TCGA'),
       '6'  => t('Skin Cutaneous Melanoma - TCGA'),
-      '16' => t('Stomach Adenocarcinoma'),
+      '16' => t('Stomach Adenocarcinoma - TCGA'),
     ),
     '#default_value' => '3',
   );
