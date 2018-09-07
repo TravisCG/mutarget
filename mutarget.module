@@ -149,8 +149,8 @@ function mutarget_inputform($formchoose) {
 function change_to_mutargetdb() {
   $mutarget_db = array(
     'database' => 'mutarget',
-    'username' => 'XXXX',
-    'password' => 'XXXX',
+    'username' => 'root',
+    'password' => 'mta56TTK',
     'host' => 'localhost',
     'driver' => 'mysql',
   );
@@ -386,7 +386,7 @@ function genotype_form($form, $form_state) {
   $form['advanced']['statistics']['foldchange'] = array(
     '#type' => 'textfield',
     '#title' => t('Fold change cutoff (N < FC < 1/N)'),
-    '#default_value' => '50',
+    '#default_value' => '0.66',
     '#size' => 4,
     '#maxlength' => 6,
   );
@@ -464,7 +464,7 @@ function run_genotype_analysis($form, $form_state){
   $muttype     = $form_state['values']['muttype'];
   $cancer      = $form_state['values']['tumtype'];
   $pvalue      = $form_state['values']['pvalue'];
-  $foldchange  = $form_state['values']['foldchange'] / 100.0;
+  $foldchange  = $form_state['values']['foldchange'];
   $outtable    = $form_state['values']['table'];
   $numtopgenes = $form_state['values']['numtopgenes'];
   $outliers    = $form_state['values']['outliers'];
@@ -656,7 +656,7 @@ function target_form($form, $form_state){
   $form['advanced']['foldchange'] = array(
     '#type' => 'textfield',
     '#title' => t('Fold change cutoff (N < FC < 1/N)'),
-    '#default_value' => '50',
+    '#default_value' => '0.66',
     '#size' => 4,
     '#maxlength' => 6,
   );
