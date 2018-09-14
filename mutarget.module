@@ -102,7 +102,7 @@ function create_table($tmpname, $geneofinterest, $FDR) {
           $fdrlimit = 0.1;
 	}
 
-	if ( ($fdr < $fdrlimit)){
+	if ( ($fdr <= $fdrlimit)){
           $html = $html . "<tr><td>";
           $data = str_replace("\t", "</td><td>", $data);
           $data = str_replace("\n", "", $data);
@@ -393,7 +393,12 @@ function genotype_form($form, $form_state) {
 
   $form['advanced']['statistics']['FDR'] = array(
     '#type' => 'checkbox',
-    '#title' => 'Benjamini-Hochberg false discovery rate below 10%',
+    '#title' => t('Benjamini-Hochberg false discovery rate below 10%'),
+  );
+
+  $form['advanced']['statistics']['avgexpfilt'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Exclude genes with a mean expression below <1>'),
   );
 
   $form['advanced']['output'] = array(
@@ -471,6 +476,7 @@ function run_genotype_analysis($form, $form_state){
   $filtgene    = $form_state['values']['filtergene'];
   $filttype    = $form_state['values']['filtertype'];
   $FDR         = $form_state['values']['FDR'];
+  $avgexpfilt  = $form_state['values']['avgexpfilt'];
   $response    = array();
 
   $genes = get_genename($genes);
@@ -487,6 +493,9 @@ function run_genotype_analysis($form, $form_state){
   $cancer = (int)$cancer;
   chdir('sites/all/modules/mutarget/');
   $cmd = "./powermw -t onegroup -r $genes -g mut.$cancer.$dbsrc.$muttype.tsv -v exp.$cancer.$dbsrc.tsv -o $tmp_name.tsv -f $filttype -b $filtgene -l $foldchange -p $pvalue";
+  if ($avgexpfilt != 0) {
+    $cmd = $cmd . " -a 1.0";  // Filter by average expression
+  }
   $cmd2= "Rscript createpic.R genotype $genes $tmp_name $tmp_name.tsv exp.$cancer.$dbsrc.tsv mut.$cancer.$dbsrc.$muttype.tsv $numtopgenes $outliers";
   $msg = runcmd($cmd, "mutarget_progress_" . $form_state['time'], "Mann-Whitney test");
   if ($numtopgenes > 0) {
