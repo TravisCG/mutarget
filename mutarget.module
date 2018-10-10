@@ -495,20 +495,10 @@ function run_genotype_analysis($form, $form_state){
  * Ajax function to update the mutation number in div#mutnumber
  */
 function get_mutated_samples($form, $form_state){
-  $muttype = $form['advanced']['mutations']['muttype']['#value'];
-  $tumtype = $form['tumtype']['#value'];
-  $gene    = $form['genes']['#value'];
-  $dbsrc   = 2; //FIXME there is only TCGA in mutarget, so this is obsolote
-  $tumtype = (int)$tumtype;
-  $all = $gene;
-
-  change_to_mutargetdb();
-  $all = db_query("select count(distinct(name)) as counted from individual where cancer_cancerid =" . $tumtype . " and datasource_datasourceid = " . $dbsrc . ";")->fetchField();
-  $mutated = db_query("select count(distinct(name)) as mutated from mutation left join (cancer,genesynonime,muteffect,individual) on (individual_cancer_cancerid = cancerid and genesynonime.genetable_geneid = mutation.genetable_geneid and muteffect_effectid = effectid and individual_patientid = patientid) where effectid = " . $muttype . " and cancerid = " . $tumtype . " and synonimename = '" . $gene . "' and datasource_datasourceid = " . $dbsrc . ";" )->fetchField();
-  $_SESSION['mutsamplesnum'] = $mutated;
-  $_SESSION['totalsamplenum'] = $all;
-
-  db_set_active();
+  $all = "Unknown";
+  $mutated = "Less";
+  $_SESSION['mutsamplesnum'] = 123;
+  $_SESSION['totalsamplenum'] = 1;
 
   return '<div id="samplesize"><label>All|mutated samples:</label> ' . $all . "|" . $mutated . '</div>';
 }
@@ -691,7 +681,6 @@ function target_form($form, $form_state){
 function run_target_analysis($form, $form_state){
   $tmp_name    = tempnam("", "MUT");
   $cancer      = $form_state['values']['tumtype'];
-  $muttype     = "disruptive";
   $gene        = $form_state['values']['gene'];
   $pvalue      = $form_state['values']['pvalue'];
   $foldchange  = $form_state['values']['foldchange'] / 100.0;
@@ -707,15 +696,14 @@ function run_target_analysis($form, $form_state){
   $gene = get_genename($gene);
 
   chdir('sites/all/modules/mutarget/');
-  $cmd = "./powermw -t onevalue -r $gene -g mut.$cancer.$muttype.tsv -v exp.$cancer.tsv -o $tmp_name.tsv -f $filttype -b $filtgene -l $foldchange -m $mutprev -p $pvalue";
-  $cmd2= "Rscript createpic.R target $gene $tmp_name $tmp_name.tsv exp.$cancer.tsv mut.$cancer.$muttype.tsv $numtopgenes $outlier";
+  $cmd = "./powermw -t onevalue -r $gene -g mut.$cancer.disruptive.tsv -v exp.$cancer.tsv -o $tmp_name.tsv -f $filttype -b $filtgene -l $foldchange -m $mutprev -p $pvalue";
+  $cmd2= "Rscript createpic.R target $gene $tmp_name $tmp_name.tsv exp.$cancer.tsv mut.$cancer.disruptive.tsv $numtopgenes $outlier";
   $msg = runcmd($cmd, "mutarget_progress_" . $form_state['time'], "Mann-Whitney test");
   if ($numtopgenes > 0){
     $msg = $msg . runcmd($cmd2, "mutarget_progress_" . $form_state['time'], "Picture generation");
   }
 
   $html = add_header($gene, "", "");
-
   $html = $html . "Tumor type: " . get_cancertype($cancer);
   if ($msg != ''){
     $html = $html . $msg;
