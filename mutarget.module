@@ -175,20 +175,6 @@ function get_genename($synonime) {
   return($result);
 }
 
-/* Find out data source from the cancer type */
-function dbsrcfromcancer($cancer){
-  // Let's start hacking
-  if ($cancer == "3b"){
-    $dbsrc = 2;
-  } elseif ($cancer == "13" || $cancer == "14" || $cancer == "15") {
-    $dbsrc = 3;
-  } else {
-    $dbsrc = 1;
-  }
-
-  return $dbsrc;
-}
-
 /* Get actionable or fda gene list */
 function getgenelist($type) {
   $genelist = array();
@@ -262,25 +248,17 @@ function genotype_form($form, $form_state) {
     '#type' => 'select',
     '#title' => t('Tumour type'),
     '#options' => array(
-      '13' => t('Acute Lymphoblastic Leukemia - TARGET'),
-      '14' => t('Acute Myeloid Leukemia - TARGET'),
-      '3b' => t('Breast Carcinoma - METABRIC'),
-      '3'  => t('Breast Invasive Carcinoma - TCGA'),
-      '12' => t('Colon Adenocarcinoma - TCGA'),
-      '2'  => t('Head and Neck Squamous Cell Carcinoma - TCGA'),
-      '7'  => t('Kidney Renal Clear Cell Carcinoma - TCGA'),
-      '11' => t('Kidney Chromophobe - TCGA'),
-      '9'  => t('Kidney Renal Papillary Cell Carcinoma - TCGA'),
-      '8'  => t('Lung Adenocarcinoma - TCGA'),
-      '10' => t('Lung Squamous Cell Carcinoma - TCGA'),
-      '15' => t('Neuroblastoma - TARGET'),
-      '1'  => t('Ovarian Serous Cystadenocarcinoma - TCGA'),
-      '4'  => t('Prostate Adenocarcinoma - TCGA'),
-      '5'  => t('Rectum Adenocarcinoma - TCGA'),
-      '6'  => t('Skin Cutaneous Melanoma - TCGA'),
-      '16' => t('Stomach Adenocarcinoma - TCGA'),
+      'BRCA'  => t('Breast Invasive Carcinoma'),
+      'COLON' => t('Colon Adenocarcinoma'),
+      'GBM'   => t('Glioblastoma Multiforme'),
+      'HNSC'  => t('Head and Neck Squamous Cell Carcinoma'),
+      'KIRC'  => t('Kidney Renal Clear Cell Carcinoma'),
+      'LUNG'  => t('Lung Adenocarcinoma'),
+      'OV'    => t('Ovarian Serous Cystadenocarcinoma'),
+      'PRAD'  => t('Prostate Adenocarcinoma'),
+      'STAD'  => t('Stomach Adenocarcinoma'),
     ),
-    '#default_value' => '3',
+    '#default_value' => 'BRCA',
     '#ajax' => array(
       'callback' => 'get_mutated_samples',
       'event' => 'change',
@@ -293,10 +271,9 @@ function genotype_form($form, $form_state) {
       '#type' => 'select',
       '#title' => t('Tumor type'),
       '#options' => array(
-        '3b' => t('Breast Carcinoma - METABRIC'),
-        '3'  => t('Breast Invasive Carcinoma - TCGA'),
+        'BRCA'  => t('Breast Invasive Carcinoma'),
       ),
-      '#default_value' => '3',
+      '#default_value' => 'BRCA',
       '#ajax' => array(
       'callback' => 'get_mutated_samples',
       'event' => 'change',
@@ -328,16 +305,14 @@ function genotype_form($form, $form_state) {
     '#type' => 'radios',
     '#title' => t('Mutation type'),
     '#options' => array(
-      '6' => t('NMD transcript variant'),
-      '9' => t('Non-coding variant'),
-      '10' => t('Downstream gene'),
-      '12' => t('Missense'),
-      '14' => t('Intron variant'),
-      '18' => t('Synonymous'),
-      '26' => t('Upstream gene variant'),
-      '27' => t('3\' UTR'),
+      'all'        => t('All mutations'),
+      'coding'     => t('Coding mutations'),
+      'cnd'        => t('Coding not disruptive mutations'),
+      'disruptive' => t('Disruptive mutations'),
+      'ncoding'    => t('Noncoding mutations'),
+      'reg'        => t('Regulatory mutations'),
     ),
-    '#default_value' => '12',
+    '#default_value' => 'disruptive',
     '#ajax' => array(
       'callback' => 'get_mutated_samples',
       'wrapper' => 'samplesize',
@@ -397,8 +372,11 @@ function genotype_form($form, $form_state) {
   );
 
   $form['advanced']['statistics']['avgexpfilt'] = array(
-    '#type' => 'checkbox',
+    '#type' => 'textfield',
     '#title' => t('Exclude genes with a mean expression below <1>'),
+    '#default_value' => '10',
+    '#size' => 4,
+    '#maxlength' => 6,
   );
 
   $form['advanced']['output'] = array(
@@ -489,14 +467,11 @@ function run_genotype_analysis($form, $form_state){
     $filttype = "none";
   }
 
-  $dbsrc = dbsrcfromcancer($cancer);
   $cancer = (int)$cancer;
   chdir('sites/all/modules/mutarget/');
-  $cmd = "./powermw -t onegroup -r $genes -g mut.$cancer.$dbsrc.$muttype.tsv -v exp.$cancer.$dbsrc.tsv -o $tmp_name.tsv -f $filttype -b $filtgene -l $foldchange -p $pvalue";
-  if ($avgexpfilt != 0) {
-    $cmd = $cmd . " -a 1.0";  // Filter by average expression
-  }
-  $cmd2= "Rscript createpic.R genotype $genes $tmp_name $tmp_name.tsv exp.$cancer.$dbsrc.tsv mut.$cancer.$dbsrc.$muttype.tsv $numtopgenes $outliers";
+  $cmd = "./powermw -t onegroup -r $genes -g mut.$cancer.$muttype.tsv -v exp.$cancer.tsv -o $tmp_name.tsv -f $filttype -b $filtgene -l $foldchange -p $pvalue -a $avgexpfilt";
+
+  $cmd2= "Rscript createpic.R genotype $genes $tmp_name $tmp_name.tsv exp.$cancer.tsv mut.$cancer.$muttype.tsv $numtopgenes $outliers";
   $msg = runcmd($cmd, "mutarget_progress_" . $form_state['time'], "Mann-Whitney test");
   if ($numtopgenes > 0) {
 	  $msg = $msg . runcmd($cmd2, "mutarget_progress_" . $form_state['time'], "Picture generation");
@@ -524,7 +499,7 @@ function get_mutated_samples($form, $form_state){
   $muttype = $form['advanced']['mutations']['muttype']['#value'];
   $tumtype = $form['tumtype']['#value'];
   $gene    = $form['genes']['#value'];
-  $dbsrc   = dbsrcfromcancer($tumtype);
+  $dbsrc   = 2; //FIXME there is only TCGA in mutarget, so this is obsolote
   $tumtype = (int)$tumtype;
   $all = $gene;
 
@@ -599,25 +574,17 @@ function target_form($form, $form_state){
     '#type' => 'select',
     '#title' => t('Tumour type'),
     '#options' => array(
-      '13' => t('Acute Lymphoblastic Leukemia - TARGET'),
-      '14' => t('Acute Myeloid Leukemia - TARGET'),
-      '3b' => t('Breast Carcinoma - METABRIC'),
-      '3'  => t('Breast Invasive Carcinoma - TCGA'),
-      '12' => t('Colon Adenocarcinoma - TCGA'),
-      '2'  => t('Head and Neck Squamous Cell Carcinoma - TCGA'),
-      '7'  => t('Kidney Renal Clear Cell Carcinoma - TCGA'),
-      '11' => t('Kidney Chromophobe - TCGA'),
-      '9'  => t('Kidney Renal Papillary Cell Carcinoma - TCGA'),
-      '8'  => t('Lung Adenocarcinoma - TCGA'),
-      '10' => t('Lung Squamous Cell Carcinoma - TCGA'),
-      '15' => t('Neuroblastoma - TARGET'),
-      '1'  => t('Ovarian Serous Cystadenocarcinoma - TCGA'),
-      '4'  => t('Prostate Adenocarcinoma - TCGA'),
-      '5'  => t('Rectum Adenocarcinoma - TCGA'),
-      '6'  => t('Skin Cutaneous Melanoma - TCGA'),
-      '16' => t('Stomach Adenocarcinoma - TCGA'),
+      'BRCA'  => t('Breast Invasive Carcinoma'),
+      'COLON' => t('Colon Adenocarcinoma'),
+      'GBM'   => t('Glioblastoma Multiforme'),
+      'HNSC'  => t('Head and Neck Squamous Cell Carcinoma'),
+      'KIRC'  => t('Kidney Renal Clear Cell Carcinoma'),
+      'LUNG'  => t('Lung Adenocarcinoma'),
+      'OV'    => t('Ovarian Serous Cystadenocarcinoma'),
+      'PRAD'  => t('Prostate Adenocarcinoma'),
+      'STAD'  => t('Stomach Adenocarcinoma'),
     ),
-    '#default_value' => '3',
+    '#default_value' => 'BRCA',
   );
 
   } else {
@@ -625,10 +592,9 @@ function target_form($form, $form_state){
       '#type' => 'select',
       '#title' => t('Tumour type'),
       '#options' => array(
-        '3b' => t('Breast Carcinoma - METABRIC'),
-	'3'  => t('Breast Invasive Carcinoma - TCGA'),
+	'BRCA'  => t('Breast Invasive Carcinoma - TCGA'),
       ),
-      '#default_value' => '3',
+      '#default_value' => 'BRCA',
     );
   }
 
@@ -726,7 +692,7 @@ function target_form($form, $form_state){
 function run_target_analysis($form, $form_state){
   $tmp_name    = tempnam("", "MUT");
   $cancer      = $form_state['values']['tumtype'];
-  $muttype     = "12";
+  $muttype     = "disruptive";
   $gene        = $form_state['values']['gene'];
   $pvalue      = $form_state['values']['pvalue'];
   $foldchange  = $form_state['values']['foldchange'] / 100.0;
@@ -741,11 +707,10 @@ function run_target_analysis($form, $form_state){
 
   $gene = get_genename($gene);
 
-  $dbsrc = dbsrcfromcancer($cancer);
   $cancer = (int)$cancer; //Remove B and other characters from the end of the cancerid
   chdir('sites/all/modules/mutarget/');
-  $cmd = "./powermw -t onevalue -r $gene -g mut.$cancer.$dbsrc.$muttype.tsv -v exp.$cancer.$dbsrc.tsv -o $tmp_name.tsv -f $filttype -b $filtgene -l $foldchange -m $mutprev -p $pvalue";
-  $cmd2= "Rscript createpic.R target $gene $tmp_name $tmp_name.tsv exp.$cancer.$dbsrc.tsv mut.$cancer.$dbsrc.$muttype.tsv $numtopgenes $outlier";
+  $cmd = "./powermw -t onevalue -r $gene -g mut.$cancer.$muttype.tsv -v exp.$cancer.tsv -o $tmp_name.tsv -f $filttype -b $filtgene -l $foldchange -m $mutprev -p $pvalue";
+  $cmd2= "Rscript createpic.R target $gene $tmp_name $tmp_name.tsv exp.$cancer.tsv mut.$cancer.$muttype.tsv $numtopgenes $outlier";
   $msg = runcmd($cmd, "mutarget_progress_" . $form_state['time'], "Mann-Whitney test");
   if ($numtopgenes > 0){
     $msg = $msg . runcmd($cmd2, "mutarget_progress_" . $form_state['time'], "Picture generation");
