@@ -467,7 +467,6 @@ function run_genotype_analysis($form, $form_state){
     $filttype = "none";
   }
 
-  $cancer = (int)$cancer;
   chdir('sites/all/modules/mutarget/');
   $cmd = "./powermw -t onegroup -r $genes -g mut.$cancer.$muttype.tsv -v exp.$cancer.tsv -o $tmp_name.tsv -f $filttype -b $filtgene -l $foldchange -p $pvalue -a $avgexpfilt";
 
@@ -707,7 +706,6 @@ function run_target_analysis($form, $form_state){
 
   $gene = get_genename($gene);
 
-  $cancer = (int)$cancer; //Remove B and other characters from the end of the cancerid
   chdir('sites/all/modules/mutarget/');
   $cmd = "./powermw -t onevalue -r $gene -g mut.$cancer.$muttype.tsv -v exp.$cancer.tsv -o $tmp_name.tsv -f $filttype -b $filtgene -l $foldchange -m $mutprev -p $pvalue";
   $cmd2= "Rscript createpic.R target $gene $tmp_name $tmp_name.tsv exp.$cancer.tsv mut.$cancer.$muttype.tsv $numtopgenes $outlier";
