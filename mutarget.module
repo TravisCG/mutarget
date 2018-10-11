@@ -161,9 +161,25 @@ function change_to_mutargetdb() {
 }
 
 function get_cancertype($cancer) {
-  change_to_mutargetdb();
-  $result = db_query("select cancername from cancer where cancerid = " . $cancer)->fetchField();
-  db_set_active();
+  if ($cancer == "BRCA") {
+    $result = 'Breast Invasive Carcinoma';
+  } elseif ($cancer == "COLON") {
+    $result = 'Colon Adenocarcinoma';
+  } elseif ($cancer == "GBM") {
+    $result = 'Glioblastoma Multiforme';
+  } elseif ($cancer == "HNSC") {
+    $result = 'Head and Neck Squamous Cell Carcinoma';
+  } elseif ($cancer == "KIRC") {
+    $result = 'Kidney Renal Clear Cell Carcinoma';
+  } elseif ($cancer == "LUNG") {
+    $result = 'Lung Adenocarcinoma';
+  } elseif ($cancer == "OV") {
+    $result = 'Ovarian Serous Cystadenocarcinoma';
+  } elseif ($cancer == "PRAD") {
+    $result = 'Prostate Adenocarcinoma';
+  } elseif ($cancer == "STAD") {
+    $result = 'Stomach Adenocarcinoma';
+  }
   return($result . "<br />");
 }
 
@@ -495,10 +511,29 @@ function run_genotype_analysis($form, $form_state){
  * Ajax function to update the mutation number in div#mutnumber
  */
 function get_mutated_samples($form, $form_state){
-  $all = "Unknown";
-  $mutated = "Less";
-  $_SESSION['mutsamplesnum'] = 123;
-  $_SESSION['totalsamplenum'] = 1;
+  $muttype = $form['advanced']['mutations']['muttype']['#value'];
+  $tumtype = $form['tumtype']['#value'];
+  $gene    = $form['genes']['#value'];
+  $mutated = 0;
+
+  $mutfile = fopen("sites/all/modules/mutarget/mut." . $tumtype . "." . $muttype . ".tsv", "r");
+  while( !feof($mutfile)) {
+    $line = fgets($mutfile);
+    $columns = explode("\t", $line);
+    if ($columns[0] == $gene) {
+      for ($i = 1; $i < count($columns); $i++) {
+        if ($columns[$i] == "1") {
+          $mutated++;
+	}
+      }
+      break;
+    }
+  }
+  fclose($mutfile);
+
+  $all = count($columns) - 1;
+  $_SESSION['mutsamplesnum'] = $mutated;
+  $_SESSION['totalsamplenum'] = $all;
 
   return '<div id="samplesize"><label>All|mutated samples:</label> ' . $all . "|" . $mutated . '</div>';
 }
