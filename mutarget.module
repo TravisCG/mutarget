@@ -74,8 +74,6 @@ function create_table($tmpname, $geneofinterest, $FDR) {
     if ($geneofinterest != "all") {
       $genelist = getgenelist($geneofinterest);
     }
-    $pmax = (float)$pmax;
-    $minperc = (float)$minfc / 100.0;
 
     $table = fopen($tmpname . ".tsv", "r");
     $html = "<table><thead><tr><th>";
@@ -376,8 +374,8 @@ function genotype_form($form, $form_state) {
 
   $form['advanced']['statistics']['foldchange'] = array(
     '#type' => 'textfield',
-    '#title' => t('Fold change cutoff (N < FC < 1/N)'),
-    '#default_value' => '0.66',
+    '#title' => t('Fold change cutoff (N < FC or FC < 1/N, N > 1.0!)'),
+    '#default_value' => '1.5',
     '#size' => 4,
     '#maxlength' => 6,
   );
@@ -654,8 +652,8 @@ function target_form($form, $form_state){
 
   $form['advanced']['foldchange'] = array(
     '#type' => 'textfield',
-    '#title' => t('Fold change cutoff (N < FC < 1/N)'),
-    '#default_value' => '0.66',
+    '#title' => t('Fold change cutoff (N < FC or FC < 1/N, N > 1.0!)'),
+    '#default_value' => '1.5',
     '#size' => 4,
     '#maxlength' => 6,
   );
@@ -718,7 +716,7 @@ function run_target_analysis($form, $form_state){
   $cancer      = $form_state['values']['tumtype'];
   $gene        = $form_state['values']['gene'];
   $pvalue      = $form_state['values']['pvalue'];
-  $foldchange  = $form_state['values']['foldchange'] / 100.0;
+  $foldchange  = $form_state['values']['foldchange'];
   $mutprev     = $form_state['values']['prevalence'] / 100.0;
   $filtgene    = $form_state['values']['filtergene'];
   $filttype    = $form_state['values']['filtertype'];
