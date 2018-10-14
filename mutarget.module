@@ -102,7 +102,7 @@ function create_table($tmpname, $geneofinterest, $FDR) {
 
 	if ( ($fdr <= $fdrlimit)){
           $html = $html . "<tr><td>";
-          $data = str_replace("\t", "</td><td>", $data);
+          $data = str_replace("\t", "</td><td style='text-align:center;'>", $data);
           $data = str_replace("\n", "", $data);
           $html = $html . $data;
 	  $html = $html . "</td></tr>\n";
@@ -387,7 +387,7 @@ function genotype_form($form, $form_state) {
 
   $form['advanced']['statistics']['avgexpfilt'] = array(
     '#type' => 'textfield',
-    '#title' => t('Exclude genes with a mean expression below <1>'),
+    '#title' => t('Exclude genes with a mean expression below:'),
     '#default_value' => '10',
     '#size' => 4,
     '#maxlength' => 6,
